@@ -28,3 +28,6 @@ If animation is proving to be difficult, we should probably start with a simple 
 The tail chasing sping animation, being the most complicated and requiring the most movement, should be saved for last.
 
 A developer key has been generated during the project initalization and is stored in a gitignored file in this project, but should probably be moved.
+
+## Sprite Development
+Used pixilart (https://www.pixilart.com/).
