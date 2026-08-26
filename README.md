@@ -16,7 +16,7 @@ Here are some animation examples:
 [VS code pets](https://github.com/tonybaloney/vscode-pets)
 [Garmin Corgi example](https://apps.garmin.com/apps/d5cf60d2-4ec6-4450-b082-0b3a9adea6bd?tab=reviews&criteria=rating&ascending=true&displayCurrentVersion=true)
 
-We should add clear testing documentation as we are develoiping.
+We should add clear testing documentation as we are developing.
 
 ## Plan
 The instructions to create a new monkey c project [from Garmin](https://developer.garmin.com/connect-iq/connect-iq-basics/your-first-app/#your-first-connect-iq-app) to initalize the project have been followed and live in the directory named DogAnimationExperiment.
@@ -31,3 +31,12 @@ A developer key has been generated during the project initalization and is store
 
 ## Sprite Development
 Used pixilart (https://www.pixilart.com/).
+
+# Running the project locally
+Open the `DogAnimationExperiment` folder directly as the VSCode workspace root (File > Open Folder), not the parent `garmin-experiment` repo. The Monkey C extension resolves the jungle file and manifest paths relative to the workspace root, so opening the parent folder instead causes "Connect IQ project not found" / manifest lookup errors.
+
+Before running the program, make sure you have one of your source files (In the source folder with the .mc extension) open and selected in the editor.
+
+Select Run > Run Without Debugging (Command + F5 on Mac)
+
+You will be prompted with the list of products your application supports. Select one from the list.

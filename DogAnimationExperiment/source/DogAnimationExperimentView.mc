@@ -5,24 +5,83 @@ import Toybox.Lang;
 import Toybox.System;
 import Toybox.Time;
 import Toybox.Time.Gregorian;
+import Toybox.Timer;
 import Toybox.WatchUi;
 
-// Sprite sheet: 8 frames, each 42px wide x 46px tall
-const SPRITE_FRAME_WIDTH = 42;
+// All corgi sprite sheets use 120x120 frames.
+const FRAME_SIZE = 120;
+const ANIM_TICK_MS = 100;
+
+const STATE_SIT = 0;
+const STATE_SIT_TO_STAND = 1;
+const STATE_STANDING = 2;
+const STATE_STAND_TO_SIT = 3;
+
+const SIT_TO_STAND_FRAMES = 5;
+const STANDING_FRAMES = 3;
+const STAND_TO_SIT_FRAMES = 5;
+
+// Hold durations, in animation ticks (ANIM_TICK_MS each).
+const SIT_HOLD_TICKS = 40; // ~4s sitting before standing back up
+const STANDING_HOLD_TICKS = 30; // ~3s standing before sitting back down
 
 class DogAnimationExperimentView extends WatchUi.WatchFace {
 
-    private var mDogBitmap = null;
+    private var mSitToStandBitmap = null;
+    private var mStandingBitmap = null;
+    private var mStandToSitBitmap = null;
+
+    private var mAnimTimer = null;
+    private var mAnimState = STATE_SIT;
+    private var mFrameIndex = 0;
+    private var mHoldTicksRemaining = SIT_HOLD_TICKS;
 
     function initialize() {
         WatchFace.initialize();
     }
 
     function onLayout(dc as Dc) as Void {
-        mDogBitmap = WatchUi.loadResource(Rez.Drawables.DogSprite);
+        mSitToStandBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSitToStand);
+        mStandingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStanding);
+        mStandToSitBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStandToSit);
     }
 
     function onShow() as Void {
+    }
+
+    // Advances the animation state machine by one tick:
+    // SIT (hold) -> SIT_TO_STAND (play) -> STANDING (hold/loop) -> STAND_TO_SIT (play) -> SIT ...
+    function onAnimTimer() as Void {
+        if (mAnimState == STATE_SIT) {
+            mHoldTicksRemaining -= 1;
+            if (mHoldTicksRemaining <= 0) {
+                mAnimState = STATE_SIT_TO_STAND;
+                mFrameIndex = 0;
+            }
+        } else if (mAnimState == STATE_SIT_TO_STAND) {
+            mFrameIndex += 1;
+            if (mFrameIndex >= SIT_TO_STAND_FRAMES) {
+                mAnimState = STATE_STANDING;
+                mFrameIndex = 0;
+                mHoldTicksRemaining = STANDING_HOLD_TICKS;
+            }
+        } else if (mAnimState == STATE_STANDING) {
+            mFrameIndex = (mFrameIndex + 1) % STANDING_FRAMES;
+            mHoldTicksRemaining -= 1;
+            if (mHoldTicksRemaining <= 0) {
+                mAnimState = STATE_STAND_TO_SIT;
+                mFrameIndex = 0;
+            }
+        } else if (mAnimState == STATE_STAND_TO_SIT) {
+            mFrameIndex += 1;
+            if (mFrameIndex >= STAND_TO_SIT_FRAMES) {
+                mAnimState = STATE_SIT;
+                mFrameIndex = 0;
+                mHoldTicksRemaining = SIT_HOLD_TICKS;
+            }
+        }
+
+        WatchUi.requestUpdate();
     }
 
     function onUpdate(dc as Dc) as Void {
@@ -33,7 +92,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var pad = 10;
 
         // Background
-        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_WHITE);
         dc.clear();
 
         // Time
@@ -48,26 +107,36 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             }
         }
         var timeString = Lang.format("$1$:$2$", [hours, clockTime.min.format("%02d")]);
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, pad, Graphics.FONT_SYSTEM_LARGE, timeString, Graphics.TEXT_JUSTIFY_CENTER);
 
         // Date
         var today = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
         var dateString = Lang.format("$1$ $2$ $3$", [today.day_of_week, today.month, today.day]);
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
         var timeHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_LARGE);
         dc.drawText(cx, timeHeight + pad, Graphics.FONT_SYSTEM_XTINY, dateString, Graphics.TEXT_JUSTIFY_CENTER);
 
-        // Dog sprite — first frame of sheet, centered horizontally
-        if (mDogBitmap != null) {
-            var frameH = (mDogBitmap as WatchUi.BitmapResource).getHeight();
-            var dogX = cx - (SPRITE_FRAME_WIDTH / 2);
+        // Dog sprite — current animation frame, centered horizontally
+        var dogBitmap = null;
+        if (mAnimState == STATE_SIT) {
+            dogBitmap = mSitToStandBitmap;
+        } else if (mAnimState == STATE_SIT_TO_STAND) {
+            dogBitmap = mSitToStandBitmap;
+        } else if (mAnimState == STATE_STANDING) {
+            dogBitmap = mStandingBitmap;
+        } else {
+            dogBitmap = mStandToSitBitmap;
+        }
+
+        if (dogBitmap != null) {
+            var dogX = cx - (FRAME_SIZE / 2);
             var dogY = cy / 2 + pad;
-            dc.drawBitmap2(dogX, dogY, mDogBitmap as WatchUi.BitmapResource, {
-                :bitmapX => 0,
+            dc.drawBitmap2(dogX, dogY, dogBitmap as WatchUi.BitmapResource, {
+                :bitmapX => mFrameIndex * FRAME_SIZE,
                 :bitmapY => 0,
-                :bitmapWidth => SPRITE_FRAME_WIDTH,
-                :bitmapHeight => frameH
+                :bitmapWidth => FRAME_SIZE,
+                :bitmapHeight => FRAME_SIZE
             });
         }
 
@@ -77,7 +146,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         if (activityInfo != null && activityInfo.steps != null) {
             steps = activityInfo.steps as Number;
         }
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx - cx / 2, cy + cy / 2, Graphics.FONT_SYSTEM_XTINY, steps.toString() + " steps", Graphics.TEXT_JUSTIFY_LEFT);
 
         // Battery
@@ -87,13 +156,26 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     function onHide() as Void {
-        mDogBitmap = null;
+        mSitToStandBitmap = null;
+        mStandingBitmap = null;
+        mStandToSitBitmap = null;
     }
 
     function onExitSleep() as Void {
+        if (mAnimTimer == null) {
+            mAnimTimer = new Timer.Timer();
+        }
+        mAnimTimer.start(method(:onAnimTimer), ANIM_TICK_MS, true);
     }
 
     function onEnterSleep() as Void {
+        if (mAnimTimer != null) {
+            mAnimTimer.stop();
+        }
+        // Show only the static sitting pose while asleep.
+        mAnimState = STATE_SIT;
+        mFrameIndex = 0;
+        mHoldTicksRemaining = SIT_HOLD_TICKS;
     }
 
 }
