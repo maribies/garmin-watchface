@@ -67,22 +67,26 @@ function testTicksFromRandomStaysInBounds(logger as Test.Logger) as Boolean {
 }
 
 (:test)
-function testLickingBitmapLoads(logger as Test.Logger) as Boolean {
-    // If CorgiLicking failed to load, onUpdate silently skips drawing the
-    // dog entirely while in STATE_LICK (dogBitmap stays null) — the lick
-    // trick would fire but render as a blank gap instead of the animation.
-    var bitmap = WatchUi.loadResource(Rez.Drawables.CorgiLicking);
-    logger.debug("CorgiLicking loaded=" + (bitmap != null));
-    return bitmap != null;
+function testAllDrawablesLoad(logger as Test.Logger) as Boolean {
+    // If any of these fail to load, onUpdate silently skips drawing the dog
+    // entirely while in the matching state (dogBitmap stays null) — the
+    // trick still fires but renders as a blank gap instead of the animation.
+    // Checked together so adding a new sheet later means adding one line
+    // here, not a new one-off test.
+    var ok = true;
+    ok = checkDrawableLoads(logger, "CorgiStanding", Rez.Drawables.CorgiStanding) && ok;
+    ok = checkDrawableLoads(logger, "CorgiLicking", Rez.Drawables.CorgiLicking) && ok;
+    ok = checkDrawableLoads(logger, "CorgiSitToStand", Rez.Drawables.CorgiSitToStand) && ok;
+    ok = checkDrawableLoads(logger, "CorgiStandToSit", Rez.Drawables.CorgiStandToSit) && ok;
+    ok = checkDrawableLoads(logger, "CorgiTailSpin", Rez.Drawables.CorgiTailSpin) && ok;
+    return ok;
 }
 
-(:test)
-function testTailSpinBitmapLoads(logger as Test.Logger) as Boolean {
-    // Same resource-loading sanity check as testLickingBitmapLoads, for the
-    // Phase 4 tail-spin sheet.
-    var bitmap = WatchUi.loadResource(Rez.Drawables.CorgiTailSpin);
-    logger.debug("CorgiTailSpin loaded=" + (bitmap != null));
-    return bitmap != null;
+function checkDrawableLoads(logger as Test.Logger, name as String, id as ResourceId) as Boolean {
+    var bitmap = WatchUi.loadResource(id);
+    var loaded = bitmap != null;
+    logger.debug(name + " loaded=" + loaded);
+    return loaded;
 }
 
 (:test)
