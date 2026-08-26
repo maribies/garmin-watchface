@@ -33,21 +33,24 @@ function testRestFrameIsFirstInOrder(logger as Test.Logger) as Boolean {
 }
 
 (:test)
-function testTrickSelectionCanPickBothOutcomes(logger as Test.Logger) as Boolean {
-    // Rules out a selection-bias bug (e.g. Math.rand() parity always landing
-    // on one branch) hiding the lick trick behind sit-down every time.
+function testTrickSelectionCanPickAllOutcomes(logger as Test.Logger) as Boolean {
+    // Rules out a selection-bias bug (e.g. Math.rand() % 3 always landing on
+    // the same branch) hiding a trick behind the others every time.
     var sawLick = false;
     var sawSitDown = false;
-    for (var i = 0; i < 50; i += 1) {
+    var sawTailSpin = false;
+    for (var i = 0; i < 90; i += 1) {
         var picked = pickTrickState(Math.rand());
         if (picked == STATE_LICK) {
             sawLick = true;
         } else if (picked == STATE_SIT_DOWN) {
             sawSitDown = true;
+        } else if (picked == STATE_TAIL_SPIN) {
+            sawTailSpin = true;
         }
     }
-    logger.debug("sawLick=" + sawLick + " sawSitDown=" + sawSitDown);
-    return sawLick && sawSitDown;
+    logger.debug("sawLick=" + sawLick + " sawSitDown=" + sawSitDown + " sawTailSpin=" + sawTailSpin);
+    return sawLick && sawSitDown && sawTailSpin;
 }
 
 (:test)
@@ -70,6 +73,15 @@ function testLickingBitmapLoads(logger as Test.Logger) as Boolean {
     // trick would fire but render as a blank gap instead of the animation.
     var bitmap = WatchUi.loadResource(Rez.Drawables.CorgiLicking);
     logger.debug("CorgiLicking loaded=" + (bitmap != null));
+    return bitmap != null;
+}
+
+(:test)
+function testTailSpinBitmapLoads(logger as Test.Logger) as Boolean {
+    // Same resource-loading sanity check as testLickingBitmapLoads, for the
+    // Phase 4 tail-spin sheet.
+    var bitmap = WatchUi.loadResource(Rez.Drawables.CorgiTailSpin);
+    logger.debug("CorgiTailSpin loaded=" + (bitmap != null));
     return bitmap != null;
 }
 

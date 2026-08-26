@@ -171,6 +171,77 @@ paws fade in from stage 1, front legs shorten from rows 19–22 to 18–21.
 Play order `[0,0,0,1,2,3,4,4,4,4,3,2,1]` at **220 ms** — holds on both ends so the
 motion reads as a deliberate stand-up.
 
+### Tail spin (rotation) — 9 frames
+
+The hard one: a full turn on the spot. It is the only animation that needs poses other
+than the front view, so it carries its own rules.
+
+**Frame order** — front → ¾ → side → rear ¾ → back → rear ¾ (mirrored) → side
+(mirrored) → ¾ (mirrored), with a clean **standing frame first** so the clip starts
+from the shared baseline:
+
+```
+0 front, no tail        (identical to the standing sprite's rest frame)
+1 front, tail nub showing
+2 three-quarter
+3 side
+4 rear three-quarter
+5 back
+6 rear three-quarter, mirrored
+7 side, mirrored
+8 three-quarter, mirrored
+```
+
+Play straight through at **130 ms**.
+
+**Mirror the second half.** Write only the right-turning poses and derive the left ones:
+
+```js
+mirror(grid) { return grid.map(row => [...row].reverse()); }
+```
+
+Half the drawing, and the loop is guaranteed symmetric. Asymmetric markings would break
+this — add those as a post-mirror pass if the breed needs them.
+
+**Keep the silhouette mass consistent across views.** The failure mode is a side view
+that is much longer and lower than the front view, so the rotation reads as the dog
+inflating and deflating rather than turning. Body roughly 13 px wide × 8 tall in every
+view; if a pose feels too drastic next to its neighbours, it is.
+
+**Side view.** Corgis have almost no neck — the head must sit LOW, overlapping the
+body's top rows, not perched on a column above them. A head placed above the shoulders
+turns the sprite into a llama. Head rows 7–14 against a body starting at row 10 works;
+the snout protrudes forward as a white block off the head's leading edge.
+
+**Back view.** No face at all — solid coat, ears splayed as usual, no blaze and no
+muzzle. Flare the body outward below the shoulders and put white fluff around the tail
+base: this is the "big fluffy butt" frame and it needs a wider silhouette than the front
+view, or the rotation stalls visually. Bottom edge is a **straight line** — drop the
+front paws, keep only the outboard hind paws.
+
+**Tail.** A stump, not a plume: 2 px wide, 4–5 rows tall, orange with a white tip. Big
+in the back and rear-¾ views, a small nub in ¾, barely visible in front.
+
+### Draw order gotchas for non-front views
+
+Three bugs cost several rounds on the tail spin. All are ordering problems:
+
+1. **Ears after the head.** Ear rects drawn before the head get overwritten by the head
+   block, collapsing them to nubs with a 1 px pink sliver. Draw ears last (before the
+   outline pass) so the authored shape survives.
+2. **The tail is the nearest element in rear views.** Draw it after the head and body,
+   and give it its own explicit black border — the silhouette outline pass only borders
+   the outer edge, so an orange tail on an orange rump is invisible.
+3. **Separation lines must span the whole overlap, and must not land on an edge
+   column.** A divider covering only part of the seam leaves a black dash floating
+   inside the silhouette; a divider painted on the body's own edge column blackens the
+   body instead of the gap. Where two same-colour masses meet (head/body from behind,
+   tail/rump in side view), run the `k` line the full width or height of the contact.
+
+Related: any interior detail (chin gray, markings) drawn **outside** its parent shape
+strands single pixels once the outline pass runs. Keep face details inside the head
+block, and check for lone white pixels boxed in by black.
+
 ### Chaining
 Because standing, licking, and the last sit-to-stand frame all sit at `h = 1` with the
 same lower half, the clips cut together without a jump. Keep that rule for any new pose.

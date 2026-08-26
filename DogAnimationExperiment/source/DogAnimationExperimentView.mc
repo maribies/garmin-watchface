@@ -24,6 +24,9 @@ const STAND_TO_SIT_FRAME_COUNT = 5;
 const STAND_TICK_MS = 120;
 const SEATED_PAUSE_MS = 1000;
 
+const TAIL_SPIN_FRAME_COUNT = 9;
+const TAIL_SPIN_TICK_MS = 130;
+
 // Random trick trigger window, counted in idle ticks (8-20s at IDLE_TICK_MS).
 const MIN_TRICK_DELAY_TICKS = 20;
 const MAX_TRICK_DELAY_TICKS = 50;
@@ -33,6 +36,7 @@ const STATE_LICK = 1;
 const STATE_SIT_DOWN = 2;
 const STATE_SEATED_PAUSE = 3;
 const STATE_STAND_UP = 4;
+const STATE_TAIL_SPIN = 5;
 
 // Pulled out of the view so it's testable without touching private view state.
 function advanceOrderIndex(current as Number) as Number {
@@ -47,10 +51,13 @@ function ticksFromRandom(raw as Number) as Number {
 
 // Maps a raw random value to which trick plays next.
 function pickTrickState(raw as Number) as Number {
-    if (raw % 2 == 0) {
+    var pick = raw % 3;
+    if (pick == 0) {
         return STATE_LICK;
+    } else if (pick == 1) {
+        return STATE_SIT_DOWN;
     }
-    return STATE_SIT_DOWN;
+    return STATE_TAIL_SPIN;
 }
 
 // One tick of the sit-down -> seated-pause -> stand-up sequence, as
@@ -84,6 +91,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mLickingBitmap = null;
     private var mSitToStandBitmap = null;
     private var mStandToSitBitmap = null;
+    private var mTailSpinBitmap = null;
 
     private var mAnimTimer = null;
     private var mState = STATE_IDLE;
@@ -100,12 +108,13 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         mLickingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiLicking);
         mSitToStandBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSitToStand);
         mStandToSitBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStandToSit);
+        mTailSpinBitmap = WatchUi.loadResource(Rez.Drawables.CorgiTailSpin);
     }
 
     function onShow() as Void {
     }
 
-    // Idle (standing, blinking) -> random trick (lick, or sit-down/pause/stand-up) -> idle ...
+    // Idle (standing, blinking) -> random trick (lick, sit-down/pause/stand-up, or tail spin) -> idle ...
     function onAnimTimer() as Void {
         if (mState == STATE_IDLE) {
             mOrderIndex = advanceOrderIndex(mOrderIndex);
@@ -117,6 +126,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         } else if (mState == STATE_LICK) {
             mFrameIndex += 1;
             if (mFrameIndex >= LICK_FRAME_COUNT) {
+                enterIdle();
+            }
+        } else if (mState == STATE_TAIL_SPIN) {
+            mFrameIndex += 1;
+            if (mFrameIndex >= TAIL_SPIN_FRAME_COUNT) {
                 enterIdle();
             }
         } else {
@@ -164,6 +178,8 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             mAnimTimer.start(method(:onAnimTimer), STAND_TICK_MS, true);
         } else if (mState == STATE_SEATED_PAUSE) {
             mAnimTimer.start(method(:onAnimTimer), SEATED_PAUSE_MS, false);
+        } else if (mState == STATE_TAIL_SPIN) {
+            mAnimTimer.start(method(:onAnimTimer), TAIL_SPIN_TICK_MS, true);
         }
     }
 
@@ -210,6 +226,8 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             dogBitmap = mStandToSitBitmap;
         } else if (mState == STATE_STAND_UP) {
             dogBitmap = mSitToStandBitmap;
+        } else if (mState == STATE_TAIL_SPIN) {
+            dogBitmap = mTailSpinBitmap;
         }
 
         if (dogBitmap != null) {
@@ -240,6 +258,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         mLickingBitmap = null;
         mSitToStandBitmap = null;
         mStandToSitBitmap = null;
+        mTailSpinBitmap = null;
     }
 
     function onExitSleep() as Void {

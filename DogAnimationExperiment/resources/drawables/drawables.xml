@@ -4,4 +4,5 @@
     <bitmap id="CorgiStanding" filename="corgi/corgi-standing-sheet.png" dithering="none" />
     <bitmap id="CorgiStandToSit" filename="corgi/corgi-stand-to-sit-sheet.png" dithering="none" />
     <bitmap id="CorgiLicking" filename="corgi/corgi-licking-sheet.png" dithering="none" />
+    <bitmap id="CorgiTailSpin" filename="corgi/corgi-tail-spin-sheet.png" dithering="none" />
 </drawables>
