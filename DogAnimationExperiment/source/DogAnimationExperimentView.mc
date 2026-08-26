@@ -10,77 +10,37 @@ import Toybox.WatchUi;
 
 // All corgi sprite sheets use 120x120 frames.
 const FRAME_SIZE = 120;
-const ANIM_TICK_MS = 100;
+const ANIM_TICK_MS = 400;
+// Standing idle play order: rest, bob-down, rest, blink-closed (see planning/sprite-recipe.md)
+const FRAME_ORDER = [0, 1, 0, 2];
 
-const STATE_SIT = 0;
-const STATE_SIT_TO_STAND = 1;
-const STATE_STANDING = 2;
-const STATE_STAND_TO_SIT = 3;
-
-const SIT_TO_STAND_FRAMES = 5;
-const STANDING_FRAMES = 3;
-const STAND_TO_SIT_FRAMES = 5;
-
-// Hold durations, in animation ticks (ANIM_TICK_MS each).
-const SIT_HOLD_TICKS = 40; // ~4s sitting before standing back up
-const STANDING_HOLD_TICKS = 30; // ~3s standing before sitting back down
+// Pulled out of the view so it's testable without touching private view state.
+function advanceOrderIndex(current as Number) as Number {
+    return (current + 1) % FRAME_ORDER.size();
+}
 
 class DogAnimationExperimentView extends WatchUi.WatchFace {
 
-    private var mSitToStandBitmap = null;
     private var mStandingBitmap = null;
-    private var mStandToSitBitmap = null;
 
     private var mAnimTimer = null;
-    private var mAnimState = STATE_SIT;
-    private var mFrameIndex = 0;
-    private var mHoldTicksRemaining = SIT_HOLD_TICKS;
+    private var mOrderIndex = 0;
+    private var mFrameIndex = FRAME_ORDER[0];
 
     function initialize() {
         WatchFace.initialize();
     }
 
     function onLayout(dc as Dc) as Void {
-        mSitToStandBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSitToStand);
         mStandingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStanding);
-        mStandToSitBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStandToSit);
     }
 
     function onShow() as Void {
     }
 
-    // Advances the animation state machine by one tick:
-    // SIT (hold) -> SIT_TO_STAND (play) -> STANDING (hold/loop) -> STAND_TO_SIT (play) -> SIT ...
     function onAnimTimer() as Void {
-        if (mAnimState == STATE_SIT) {
-            mHoldTicksRemaining -= 1;
-            if (mHoldTicksRemaining <= 0) {
-                mAnimState = STATE_SIT_TO_STAND;
-                mFrameIndex = 0;
-            }
-        } else if (mAnimState == STATE_SIT_TO_STAND) {
-            mFrameIndex += 1;
-            if (mFrameIndex >= SIT_TO_STAND_FRAMES) {
-                mAnimState = STATE_STANDING;
-                mFrameIndex = 0;
-                mHoldTicksRemaining = STANDING_HOLD_TICKS;
-            }
-        } else if (mAnimState == STATE_STANDING) {
-            mFrameIndex = (mFrameIndex + 1) % STANDING_FRAMES;
-            mHoldTicksRemaining -= 1;
-            if (mHoldTicksRemaining <= 0) {
-                mAnimState = STATE_STAND_TO_SIT;
-                mFrameIndex = 0;
-            }
-        } else if (mAnimState == STATE_STAND_TO_SIT) {
-            mFrameIndex += 1;
-            if (mFrameIndex >= STAND_TO_SIT_FRAMES) {
-                mAnimState = STATE_SIT;
-                mFrameIndex = 0;
-                mHoldTicksRemaining = SIT_HOLD_TICKS;
-            }
-        }
-
+        mOrderIndex = advanceOrderIndex(mOrderIndex);
+        mFrameIndex = FRAME_ORDER[mOrderIndex];
         WatchUi.requestUpdate();
     }
 
@@ -117,27 +77,15 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var timeHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_LARGE);
         dc.drawText(cx, timeHeight + pad, Graphics.FONT_SYSTEM_XTINY, dateString, Graphics.TEXT_JUSTIFY_CENTER);
 
-        // Dog sprite — current animation frame, centered horizontally
-        var dogBitmap = null;
-        if (mAnimState == STATE_SIT) {
-            dogBitmap = mSitToStandBitmap;
-        } else if (mAnimState == STATE_SIT_TO_STAND) {
-            dogBitmap = mSitToStandBitmap;
-        } else if (mAnimState == STATE_STANDING) {
-            dogBitmap = mStandingBitmap;
-        } else {
-            dogBitmap = mStandToSitBitmap;
-        }
-
-        if (dogBitmap != null) {
+        // Dog sprite — current standing-sheet frame, centered horizontally.
+        // Clip to one frame's window and blit the whole sheet shifted left,
+        // rather than relying on drawBitmap2's :bitmapX/:bitmapWidth crop.
+        if (mStandingBitmap != null) {
             var dogX = cx - (FRAME_SIZE / 2);
             var dogY = cy / 2 + pad;
-            dc.drawBitmap2(dogX, dogY, dogBitmap as WatchUi.BitmapResource, {
-                :bitmapX => mFrameIndex * FRAME_SIZE,
-                :bitmapY => 0,
-                :bitmapWidth => FRAME_SIZE,
-                :bitmapHeight => FRAME_SIZE
-            });
+            dc.setClip(dogX, dogY, FRAME_SIZE, FRAME_SIZE);
+            dc.drawBitmap(dogX - (mFrameIndex * FRAME_SIZE), dogY, mStandingBitmap as WatchUi.BitmapResource);
+            dc.clearClip();
         }
 
         // Steps
@@ -156,9 +104,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     function onHide() as Void {
-        mSitToStandBitmap = null;
         mStandingBitmap = null;
-        mStandToSitBitmap = null;
     }
 
     function onExitSleep() as Void {
@@ -172,10 +118,8 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         if (mAnimTimer != null) {
             mAnimTimer.stop();
         }
-        // Show only the static sitting pose while asleep.
-        mAnimState = STATE_SIT;
-        mFrameIndex = 0;
-        mHoldTicksRemaining = SIT_HOLD_TICKS;
+        mOrderIndex = 0;
+        mFrameIndex = FRAME_ORDER[0];
     }
 
 }

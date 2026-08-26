@@ -40,3 +40,24 @@ Before running the program, make sure you have one of your source files (In the 
 Select Run > Run Without Debugging (Command + F5 on Mac)
 
 You will be prompted with the list of products your application supports. Select one from the list.
+
+# Running Tests
+
+Unit tests live alongside the source they cover, in files ending `Tests.mc` (e.g. `DogAnimationExperimentViewTests.mc`), using Garmin's built-in `Toybox.Test` framework. Test functions are tagged `(:test)`.
+
+## Via VSCode
+Open the Testing sidebar (flask icon), or use the Command Palette: "Monkey C: Run Test Explorer".
+
+## Via CLI
+Useful when you want plain PASS/FAIL output without driving the simulator UI (`monkeyc`/`monkeydo` are in the Connect IQ SDK's `bin/` folder; check VSCode's Monkey C SDK setting if they're not on your `PATH`):
+
+1. Launch the simulator and leave it running: `open -a "<path-to-sdk>/bin/ConnectIQ.app"`
+2. Build with tests included:
+   ```
+   monkeyc -f DogAnimationExperiment/monkey.jungle -d fenix7s -o /tmp/watch_tests.prg -y keys/developer_key -t
+   ```
+3. Run the tests against the simulator:
+   ```
+   monkeydo /tmp/watch_tests.prg fenix7s -t
+   ```
+   This prints a PASS/FAIL result per test plus a summary — no manual interaction with the simulator window needed.
