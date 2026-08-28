@@ -1,0 +1,94 @@
+# Refinement Strategy
+
+Phases 1-4 in [coding-strategy.md](coding-strategy.md) got a working watchface: static info display, a standing-idle blink loop, and three random tricks (lick, sit-down/stand-up, tail spin). This doc plans the next round — a visual redesign plus new data-driven behaviors — refined from the original brainstorming notes against the actual Connect IQ SDK docs (`doc/` and `samples/` in the SDK install) rather than guesses and assumptions. API findings have been added to [boilerplate-context.md](boilerplate-context.md).
+
+Before starting on Phase A, this doc (and the current codebase) went through an in-depth, staff-engineer-level review — looking for scalability and correctness risk ahead of adding more sprites/triggers, not just checking that the plan reads well. That review produced Phase 0 below, plus a few items folded into Deferred.
+
+## Phase 0 — Resolve before further additions
+
+Surfaced by the in-depth review mentioned above. Both items block Phase A/B until resolved, since they affect how much room there actually is to work with.
+
+**Goal:** Confirm we're not already over the sprite memory budget, and stop the render/dispatch code from growing linearly with every new trick.
+
+1. **Resolve the sprite memory question.** Calculating real bytes from each sheet's actual unique-color count (palette bit-depth, not a naive 8-bits-per-pixel guess) puts the *current* 5 sheets at ~232KB against the 128KB `watchFace` budget — yet every build has succeeded cleanly, including with `-w` (warnings enabled). That's an unresolved contradiction: either the bit-depth model used to estimate this is wrong, the 128KB figure doesn't cover bitmap resources the way assumed, or there's an undocumented separate resource pool. "Build succeeded" has been the only signal relied on all session, and it doesn't actually settle this either way. Verify for real — ideally on physical hardware, since the simulator may not enforce the same limit a device does — before Phase B adds three more sheets (`sploot-rear` alone is the largest yet, at 144,000px).
+2. **Stop the per-trick fan-out.** Every new trick currently means hand-touching three separate if/else chains that all have to stay in sync by hand: `onAnimTimer`'s state dispatch, `configureTimerForState`, and the bitmap-selection block in `onUpdate`. We've done this three times over already (lick, sit-stand, tail-spin), and Phase B adds two more tricks on top of that. Refactor toward something table-driven (e.g. a per-trick struct/dictionary describing bitmap, frame count, tick interval, and sequencing) before adding more, so a new trick becomes one data entry instead of a three-file touch.
+
+**Verification:** Memory — a build or device run we can point to as actual evidence, not absence-of-warning. Architecture — adding a trick (or a stub one) touches meaningfully fewer places than it does today.
+
+---
+
+## Phase A — Watch face redesign
+
+**Goal:** Clearer, more inclusive info display; user-configurable background color and data fields.
+
+1. **Icons.** Replace the "steps" text label with a feet icon, add a battery icon with charge-level variants (full/three-quarters/half/quarter/empty) selected from `System.getSystemStats().battery`. Icons to the right of the numeral they describe, per the original notes. Source as SVG directly from FontAwesome — the resource compiler supports SVG `<bitmap>` resources natively (no PNG conversion step; confirmed both by the SDK's Resources doc and by our own already-working `launcher_icon.svg`), so no separate art pipeline needed the way the corgi sprites required one. Add under `resources/drawables/` (an `icons/` subfolder, matching the `corgi/` convention) and declare each in `drawables.xml` the same way `LauncherIcon` already is. Still verify the rasterized pixel colors are `ARGB2222`-safe once real icons are in, same diligence as the sprite gray issue — vector source doesn't exempt it from that.
+2. **Background colors.** Extend the existing (currently unused) `resources/settings/properties.xml` + `settings.xml` scaffold — this is the `Properties_and_App_Settings` mechanism (on-device Settings menu / Garmin Connect mobile app), works on every device we support. (Correction: an earlier version of this doc cited the `ConfigurableWatchFace` SDK sample here — that sample is actually built around the *native, fēnix 8+-only* long-press watch face editor, a different mechanism; see Deferred.) Add 6 light shades (red, blue, yellow, green, purple, orange), each `ARGB2222`-safe. Decide during implementation whether text stays black or shifts to a darker tint of the background — flagged in the original notes as needing a visual check, not a design decision to make blind.
+3. **Configurable data fields.** Same Settings-menu mechanism as background color, uniform across all supported devices (`fenix7pro`, `fenix7pronowifi`, `fenix7s`, `fenix7spro`, `fenix8solar47mm`) rather than branching for fēnix 8's native field editor — see Deferred. 3-5 slots, each user-selectable from: steps (existing), battery (existing), heart rate, weather, body battery. Date/time stay fixed and always shown, per the original notes' priority ordering. Layout: worth experimenting with the dog sprite off-center (left or right) so fields have a consistent side to live on, rather than assuming the current centered layout survives this change.
+
+   **Decided:** field selection is Settings-driven (same mechanism as background color), and only data for currently-selected fields is fetched/subscribed — generalizes the heart-rate-specific "only call if selected" note to every field, including unsubscribing a `Complications` field the user deselects mid-use, not just at view show/hide.
+
+   **Still open, decide before building this item:**
+   - Settings shape — one Property per slot (`Field1`…`Field5`, each a list picking from {none, steps, battery, heart rate, weather, body battery}), or some other scheme?
+   - Layout when fewer than the max slots are chosen — do unused positions go blank, or does the layout re-flow/re-center around however many are actually selected?
+   - A uniform per-field render path (e.g. a struct/function taking icon + value + fallback text) so `onUpdate` loops over selected fields identically regardless of type, rather than a growing per-field if/else the way trick dispatch already does (the thing Phase 0 item 2 is fixing for tricks — worth not reintroducing the same shape here).
+4. Second dog breed stays deferred, unscoped, per the original notes' "eventually."
+
+**Verification:** Each new icon/color/field checked live in the simulator — pixel alignment, `ARGB2222` color fidelity, and (for weather) the fallback state when `CurrentConditions` is null.
+
+---
+
+## Phase B — New animated behaviors
+
+**Goal:** More triggers wired into the existing random-trick state machine, using the sprite sheets already on disk.
+
+Assets already present (frame counts inferred from sheet width ÷ 120px, same as the existing sheets — frame order and per-frame timing still need deciding the same way we did for tail spin: inspect actual pixel alignment, propose a play order, confirm live):
+
+| Sheet | Frames |
+|---|---|
+| `corgi-foot-taps-sheet.png` | 5 |
+| `corgi-sploot-front-sheet.png` | 8 |
+| `corgi-sploot-rear-sheet.png` | 10 |
+
+1. **Feet tappies.** Triggers: added to the existing random trick pool (alongside lick/sit-stand/tail-spin), plus a `COMPLICATION_TYPE_NOTIFICATION_COUNT` increase.
+2. **Laying down (sploot).** Two sheets exist (front and rear/"butt showing," per the original notes' preference) — decide during implementation whether both play as a sequence or the rear view is the only one used. Triggers: low battery, activity goal reached (`Info.steps` vs `.stepGoal`), near-bedtime (`UserProfile.sleepTime`).
+3. **Move-alert trigger** (lower priority, per your note — worth doing, just not first). Reuses an existing animation (candidates: tail spin, or the new sploot/foot-taps once built) when `moveBarLevel` reaches `MOVE_BAR_LEVEL_MAX`.
+4. **Heart-rate-triggered lick.** Reuses the existing lick animation; fires when a recent `getHeartRateHistory()` sample notably exceeds `UserProfile.restingHeartRate`. **Decide implement-vs-defer right before building this item, not now:** heart-rate patterns may not be reliably discernible for a good trigger, and the extra `getHeartRateHistory()` checking has a battery cost that might not be worth it for something this uncertain — weigh that against Phase A's field display already needing HR reads (see `boilerplate-context.md`), which lowers the marginal cost of also using it as a trigger. If the decision is to skip it, nothing is lost: lick already fires on its own via the existing random trick pool regardless.
+
+**Verification:** Each new trigger confirmed live — both that the condition actually fires (may need temporarily-relaxed thresholds the way we shortened the trick-trigger window in Phase 3, to test without waiting for a real low-battery/bedtime moment) and that the animation renders correctly via the `setClip`+`drawBitmap` approach already proven for the existing sheets.
+
+---
+
+## Testing, as we go
+
+Two kinds of verification, and neither substitutes for the other — this bit us twice already (the `drawBitmap2` cropping bug and the sit/stand sequencing bug were each invisible to the other kind of check):
+
+**Automated (`Toybox.Test`, `monkeyc -t` / `monkeydo -t`)** — for logic that doesn't need pixels on screen:
+- Threshold/comparison logic: move-bar-max check, notification-count delta detection, low-battery threshold, weather refresh-time-window check.
+- Data formatting/fallback logic: what gets drawn when `CurrentConditions`/a `Complications` value is null.
+- Any new trick-sequencing state machine (mirroring `nextTrickStep` / `testTrickSequenceWalksSitPauseStand`), if a new trick needs multi-state playback like sit-down/stand-up did.
+- Resource loading for each new sheet, folded into the existing `testAllDrawablesLoad` rather than a new one-off test per sheet.
+- New color values are `ARGB2222`-safe (a pure function checking each channel is in `{0,85,170,255}`, tested against the actual chosen palette).
+
+**Visual (simulator)** — for anything a passing test can't confirm:
+- Icon/field pixel placement and sizing at actual screen scale.
+- Color rendering on-device (or as close as the simulator gets) to rule out quantization shifts a unit test can't see.
+- New sprite sheets: frame alignment (no sliding, matching the earlier `setClip` fix) and pacing/feel of new animations.
+- Triggers that depend on real device state (battery level, time-of-day, notifications) — confirmed with temporarily-relaxed thresholds, then reverted, same pattern as the Phase 3 trigger-window shortening.
+
+---
+
+## Deferred
+
+Surfaced by the in-depth review:
+- Launcher icon is 24×24 but `fenix7s` wants 40×40 — it's being auto-upscaled and will look soft on-device (`-w` build warning). Cosmetic, independent of the phases above.
+
+Continued from [coding-strategy.md](coding-strategy.md)'s own Deferred list:
+- Developer key signing (needed only for device sideload / store submission, not simulator)
+- Multi-language support (also re-confirmed live as a `-w` build warning during this review)
+- Settings UI (background color, foreground color toggles) — background color specifically is picked up by Phase A above; foreground-color-specific settings remain deferred beyond that
+- Performance profiling (only needed if frame drops are observed)
+
+New from this pass:
+- Second dog breed (unscoped)
+- Anything requiring a background service (e.g. a literal push-notification-content trigger, which would need the `Background` permission and a `ServiceDelegate` — bigger lift than the `Complications` notification-count proxy, not pursued unless the proxy proves insufficient)
+- **Per-device-generation feature support, in general** — explore this as its own future pass rather than special-casing it per feature as we go. First concrete example: the native on-device watch face editor (`<watchface-config>` resource, `WatchFaceDelegate.onTap()`/`setSelectedComplication()`, field choices expressed as `Complications.COMPLICATION_TYPE_*`) is available on fēnix 8 and newer only (`doc/docs/Core_Topics/Editing_Watch_Faces_On_Device.html` in the SDK) — our `fenix8solar47mm` target could use it for a native tap-to-edit field picker instead of the Settings-menu approach Phase A uses uniformly. Not pursued now, both to keep Phase A's implementation single-path (per Phase 0's goal of reducing fan-out) and because `fenix7spro` (no native editor) is the stated primary target device. Likely more such generation-gated features exist (older devices lacking APIs Phase A/B assume, newer devices offering nicer alternatives) — worth a dedicated compatibility pass later rather than discovering them one at a time.

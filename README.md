@@ -29,8 +29,14 @@ The tail chasing sping animation, being the most complicated and requiring the m
 
 A developer key has been generated during the project initalization and is stored in a gitignored file in this project, but should probably be moved.
 
+Work followed [planning/coding-strategy.md](planning/coding-strategy.md) through the initial phases (static display, standing-idle animation, and the lick/sit-stand/tail-spin tricks). Further work continues in [planning/refinement-strategy.md](planning/refinement-strategy.md), covering a visual redesign and additional animated behaviors.
+
+The project setup and key API findings are noted in [boilerplate-context.md](boilerplate-context.md).
+
 ## Sprite Development
-Used pixilart (https://www.pixilart.com/).
+Used pixilart (https://www.pixilart.com/) and Claude design.
+
+A recipe for creating the pixel art has been documented and is continuously updated in [sprite-recipe.md](sprite-recipe.md) to track the strategy creation of the pixel art and to hopefully provide key insights to additional "breed" development in the future.
 
 # Running the project locally
 Open the `DogAnimationExperiment` folder directly as the VSCode workspace root (File > Open Folder), not the parent `garmin-experiment` repo. The Monkey C extension resolves the jungle file and manifest paths relative to the workspace root, so opening the parent folder instead causes "Connect IQ project not found" / manifest lookup errors.

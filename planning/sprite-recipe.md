@@ -75,6 +75,71 @@ for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
 
 Face details go **after** the outline so they aren't swallowed by it.
 
+## 3b. Outlined vs. outline-free
+
+The same artwork ships either way. The rect geometry never changes — only what happens
+after it is drawn.
+
+### Adding an outline (the default)
+
+Run the outline pass in section 3 on the finished shape, then draw face details on top.
+The black ring grows OUTWARD into empty cells, so the silhouette gains 1 px on every
+side. That is why the art needs a 1 px margin all round.
+
+### Removing the outline
+
+Do not simply delete the pass — the sprite goes flat and its edges dissolve. Replace it
+with an **inward edge pass** plus three compensations:
+
+**1. Darken the outermost ring of the shape itself.** Snapshot the grid first, then
+recolour any filled pixel that has an empty orthogonal neighbour:
+
+```js
+const snapshot = grid.map(r => [...r]);
+const isFilled = (x,y) => x>=0 && x<24 && y>=0 && y<24 && snapshot[y][x] !== null;
+for (let y=0; y<24; y++) for (let x=0; x<24; x++) {
+  if (!isFilled(x,y)) continue;
+  if (![[x-1,y],[x+1,y],[x,y-1],[x,y+1]].some(([nx,ny]) => !isFilled(nx,ny))) continue;
+  if (snapshot[y][x] === o) grid[y][x] = e;   // coat edge, e.g. #D9741C
+}
+```
+
+Because it works inward the silhouette stays exactly the same size as the outlined
+version — the two are drop-in swaps.
+
+- **Only darken the coat.** Whites (chest, muzzle, paws) must stay pure; a gray edge
+  around the paws reads as dirt.
+- **Exempt narrow features.** Anything 2 px wide is *all* edge and turns solid dark.
+  Skip the ear rows (`if (y < 5) continue;`) or the ears become dark stubs.
+
+**2. Thicken the ears.** The black outline was adding ~2 px of visual mass per ear.
+Without it, widen each ear rect by 1 px outward, and give the tip a flat 3-px top rather
+than a taper — a pointed tip with no outline reads as a spike.
+
+**3. Restore the rounding, and only at true silhouette corners.** The outline used to
+soften hard corners. Clear a handful of outer corner pixels by hand:
+
+```js
+[[4,13],[19,13]].forEach(([x,y]) => { grid[y][x] = null; });
+```
+
+Rules learned the hard way:
+
+- Clear only corners on the **outer** silhouette. Clearing an interior junction (where
+  the legs meet the body) punches visible holes.
+- Do not round the paw bottoms — keep them the full 3 px wide, or they look clipped.
+- Where an ear meets the head, **fill** rather than clear: extend the ear's base rect
+  toward the skull so no transparent notch is left between them.
+
+**4. Watch for leftover divider lines.** Any `k`/`e` separation line copied from an
+outlined pose runs AFTER the edge pass, so it paints brand-new opaque pixels outside the
+silhouette instead of recolouring existing ones. Delete dividers the pose doesn't need,
+and clip the ones it does to rows where the body actually exists.
+
+Face details (eyes, nose, mouth, chin) stay black in both versions — they are what makes
+the face read at 110 px, and they sit inside the shape so the edge pass never touches
+them.
+
 ## 4. Baseline geometry
 
 ### Upper half — identical in every sprite, shifted by `h`
