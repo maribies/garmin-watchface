@@ -39,6 +39,7 @@ Used pixilart (https://www.pixilart.com/) and Claude design.
 A recipe for creating the pixel art has been documented and is continuously updated in [sprite-recipe.md](sprite-recipe.md) to track the strategy creation of the pixel art and to hopefully provide key insights to additional "breed" development in the future.
 
 # Running the project locally
+## In simulation
 Open the `DogAnimationExperiment` folder directly as the VSCode workspace root (File > Open Folder), not the parent `garmin-experiment` repo. The Monkey C extension resolves the jungle file and manifest paths relative to the workspace root, so opening the parent folder instead causes "Connect IQ project not found" / manifest lookup errors.
 
 Before running the program, make sure you have one of your source files (In the source folder with the .mc extension) open and selected in the editor.
@@ -46,6 +47,29 @@ Before running the program, make sure you have one of your source files (In the 
 Select Run > Run Without Debugging (Command + F5 on Mac)
 
 You will be prompted with the list of products your application supports. Select one from the list.
+
+## Side load on the device
+From section [Side Loading an App](https://developer.garmin.com/connect-iq/connect-iq-basics/your-first-app/)
+
+The Monkey C extension provides a wizard to help developers side load an application. The wizard will create an executable (PRG) of the selected project. Here's how to use it:
+
+Plug your device into your computer
+* Mac users need the Garmin (Android) device to be discoverable. Suggested download is [openmtp](https://github.com/ganeshrvel/openmtp).
+
+Use Ctrl + Shift + P (Command + Shift + P on the Mac) to summon the command palette
+* Make sure to do this in the `DogAnimationExperiment` as explained above in the simulation section.
+
+In the command palette type "Build for Device" and select Monkey C: Build for Device
+
+Select the product you wish to build for. If you are unable to choose a device for which to build (the menu appears empty), it means that there are no valid devices configured for your project. See Editing the Supported Products for instructions.
+
+Choose a directory for the output and click Select Folder
+
+In your file manager, go to the directory selected in step 4
+
+Copy the generated PRG files to your device's GARMIN/APPS directory
+
+Apparently the PRG files are not visible, and the only way to verify is by checking if the new watchface appears in the options, otherwise it can just silently fail.
 
 # Running Tests
 
