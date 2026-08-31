@@ -16,27 +16,16 @@ const FRAME_SIZE = 120;
 const FRAME_ORDER = [0, 1, 0, 2];
 const IDLE_TICK_MS = 400;
 
-const LICK_FRAME_COUNT = 11;
-const LICK_TICK_MS = 150;
-
-const SIT_TO_STAND_FRAME_COUNT = 5;
-const STAND_TO_SIT_FRAME_COUNT = 5;
+// Shared by the sit-down and stand-up clips below (the compound sit/stand trick).
 const STAND_TICK_MS = 120;
-const SEATED_PAUSE_MS = 1000;
-
-const TAIL_SPIN_FRAME_COUNT = 9;
-const TAIL_SPIN_TICK_MS = 130;
 
 // Random trick trigger window, counted in idle ticks (8-20s at IDLE_TICK_MS).
 const MIN_TRICK_DELAY_TICKS = 20;
 const MAX_TRICK_DELAY_TICKS = 50;
 
-const STATE_IDLE = 0;
-const STATE_LICK = 1;
-const STATE_SIT_DOWN = 2;
-const STATE_SEATED_PAUSE = 3;
-const STATE_STAND_UP = 4;
-const STATE_TAIL_SPIN = 5;
+// Sentinel for "not currently playing a trick." Valid trick states are
+// indices into mTricks (0..mTricks.size()-1), built once bitmaps are loaded.
+const STATE_IDLE = -1;
 
 // Pulled out of the view so it's testable without touching private view state.
 function advanceOrderIndex(current as Number) as Number {
@@ -49,54 +38,39 @@ function ticksFromRandom(raw as Number) as Number {
     return MIN_TRICK_DELAY_TICKS + (raw % span);
 }
 
-// Maps a raw random value to which trick plays next.
-function pickTrickState(raw as Number) as Number {
-    var pick = raw % 3;
-    if (pick == 0) {
-        return STATE_LICK;
-    } else if (pick == 1) {
-        return STATE_SIT_DOWN;
-    }
-    return STATE_TAIL_SPIN;
+// Maps a raw random value to which trick (index into mTricks) plays next.
+function pickTrickIndex(raw as Number, trickCount as Number) as Number {
+    return raw % trickCount;
 }
 
-// One tick of the sit-down -> seated-pause -> stand-up sequence, as
-// [nextState, nextFrameIndex]. Only valid for those three states — IDLE/LICK
-// ticking and the full reset on trick completion are handled by the view.
-// Completion is signaled by returning STATE_IDLE; the caller is responsible
-// for calling enterIdle() (timer reconfig + re-rolled trick delay) rather
-// than applying the returned frame index directly in that case.
-function nextTrickStep(state as Number, frameIndex as Number) as Array<Number> {
-    if (state == STATE_SIT_DOWN) {
-        var next = frameIndex + 1;
-        if (next >= STAND_TO_SIT_FRAME_COUNT) {
-            return [STATE_SEATED_PAUSE, STAND_TO_SIT_FRAME_COUNT - 1]; // hold on the fully-seated frame
-        }
-        return [STATE_SIT_DOWN, next];
-    } else if (state == STATE_SEATED_PAUSE) {
-        return [STATE_STAND_UP, 0];
-    } else if (state == STATE_STAND_UP) {
-        var next = frameIndex + 1;
-        if (next >= SIT_TO_STAND_FRAME_COUNT) {
-            return [STATE_IDLE, 0];
-        }
-        return [STATE_STAND_UP, next];
+// One tick of progress through a trick's clip sequence, as [nextClipIndex,
+// nextClipFrame]. clips only needs each entry's :frameCount for this. If
+// nextClipIndex >= clips.size(), the trick is complete — the caller is
+// responsible for calling enterIdle() (timer reconfig + re-rolled trick
+// delay) rather than applying the returned frame directly in that case.
+function nextClipProgress(clipIndex as Number, clipFrame as Number, clips as Array<Dictionary>) as Array<Number> {
+    var next = clipFrame + 1;
+    if (next >= clips[clipIndex][:frameCount]) {
+        return [clipIndex + 1, 0];
     }
-    return [state, frameIndex];
+    return [clipIndex, next];
 }
 
 class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     private var mStandingBitmap = null;
-    private var mLickingBitmap = null;
-    private var mSitToStandBitmap = null;
-    private var mStandToSitBitmap = null;
-    private var mTailSpinBitmap = null;
+
+    // Each trick is an Array of clips ({:bitmap, :startFrame, :frameCount,
+    // :tickMs, :repeat}), played in order. Adding a trick means adding one
+    // entry here — nothing else needs touching to wire it into the random
+    // pool, the timer, or drawing.
+    private var mTricks as Array<Array<Dictionary> > or Null = null;
 
     private var mAnimTimer = null;
     private var mState = STATE_IDLE;
-    private var mOrderIndex = 0;
-    private var mFrameIndex = FRAME_ORDER[0];
+    private var mOrderIndex = 0; // idle only: index into FRAME_ORDER
+    private var mClipIndex = 0; // trick only: which clip within mTricks[mState]
+    private var mClipFrame = 0; // trick only: 0-based frame progress within the current clip
     private var mTicksUntilTrick = MIN_TRICK_DELAY_TICKS;
 
     function initialize() {
@@ -105,45 +79,51 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     function onLayout(dc as Dc) as Void {
         mStandingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStanding);
-        mLickingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiLicking);
-        mSitToStandBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSitToStand);
-        mStandToSitBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStandToSit);
-        mTailSpinBitmap = WatchUi.loadResource(Rez.Drawables.CorgiTailSpin);
+        var lickingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiLicking);
+        var sitToStandBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSitToStand);
+        var standToSitBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStandToSit);
+        var tailSpinBitmap = WatchUi.loadResource(Rez.Drawables.CorgiTailSpin);
+
+        mTricks = [
+            // Lick: 11 frames at 150ms
+            [
+                { :bitmap => lickingBitmap, :startFrame => 0, :frameCount => 11, :tickMs => 150, :repeat => true },
+            ],
+            // Sit down (5 frames) -> hold seated (1 frame, 1s) -> stand back up (5 frames)
+            [
+                { :bitmap => standToSitBitmap, :startFrame => 0, :frameCount => 5, :tickMs => STAND_TICK_MS, :repeat => true },
+                { :bitmap => standToSitBitmap, :startFrame => 4, :frameCount => 1, :tickMs => 1000, :repeat => false },
+                { :bitmap => sitToStandBitmap, :startFrame => 0, :frameCount => 5, :tickMs => STAND_TICK_MS, :repeat => true },
+            ],
+            // Tail spin: 9 frames at 130ms
+            [
+                { :bitmap => tailSpinBitmap, :startFrame => 0, :frameCount => 9, :tickMs => 130, :repeat => true },
+            ],
+        ];
     }
 
     function onShow() as Void {
     }
 
-    // Idle (standing, blinking) -> random trick (lick, sit-down/pause/stand-up, or tail spin) -> idle ...
+    // Idle (standing, blinking) -> random trick -> idle ...
     function onAnimTimer() as Void {
         if (mState == STATE_IDLE) {
             mOrderIndex = advanceOrderIndex(mOrderIndex);
-            mFrameIndex = FRAME_ORDER[mOrderIndex];
             mTicksUntilTrick -= 1;
             if (mTicksUntilTrick <= 0) {
                 startRandomTrick();
             }
-        } else if (mState == STATE_LICK) {
-            mFrameIndex += 1;
-            if (mFrameIndex >= LICK_FRAME_COUNT) {
-                enterIdle();
-            }
-        } else if (mState == STATE_TAIL_SPIN) {
-            mFrameIndex += 1;
-            if (mFrameIndex >= TAIL_SPIN_FRAME_COUNT) {
-                enterIdle();
-            }
         } else {
-            // STATE_SIT_DOWN, STATE_SEATED_PAUSE, STATE_STAND_UP
-            var prevState = mState;
-            var step = nextTrickStep(mState, mFrameIndex);
-            if (prevState == STATE_STAND_UP && step[0] == STATE_IDLE) {
+            var clips = mTricks[mState];
+            var step = nextClipProgress(mClipIndex, mClipFrame, clips);
+            if (step[0] >= clips.size()) {
                 enterIdle();
             } else {
-                mState = step[0];
-                mFrameIndex = step[1];
-                if (mState != prevState) {
-                    configureTimerForState();
+                var clipChanged = step[0] != mClipIndex;
+                mClipIndex = step[0];
+                mClipFrame = step[1];
+                if (clipChanged) {
+                    configureTimerForClip(clips[mClipIndex]);
                 }
             }
         }
@@ -152,35 +132,31 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     function startRandomTrick() as Void {
-        mState = pickTrickState(Math.rand());
-        mFrameIndex = 0;
-        configureTimerForState();
+        mState = pickTrickIndex(Math.rand(), mTricks.size());
+        mClipIndex = 0;
+        mClipFrame = 0;
+        configureTimerForClip(mTricks[mState][0]);
     }
 
     function enterIdle() as Void {
         mState = STATE_IDLE;
         mOrderIndex = 0;
-        mFrameIndex = FRAME_ORDER[0];
         mTicksUntilTrick = ticksFromRandom(Math.rand());
-        configureTimerForState();
+        configureIdleTimer();
     }
 
-    // (Re)starts mAnimTimer at the tick rate/repeat mode the current state needs.
-    function configureTimerForState() as Void {
+    function configureIdleTimer() as Void {
         if (mAnimTimer == null) {
             mAnimTimer = new Timer.Timer();
         }
-        if (mState == STATE_IDLE) {
-            mAnimTimer.start(method(:onAnimTimer), IDLE_TICK_MS, true);
-        } else if (mState == STATE_LICK) {
-            mAnimTimer.start(method(:onAnimTimer), LICK_TICK_MS, true);
-        } else if (mState == STATE_SIT_DOWN || mState == STATE_STAND_UP) {
-            mAnimTimer.start(method(:onAnimTimer), STAND_TICK_MS, true);
-        } else if (mState == STATE_SEATED_PAUSE) {
-            mAnimTimer.start(method(:onAnimTimer), SEATED_PAUSE_MS, false);
-        } else if (mState == STATE_TAIL_SPIN) {
-            mAnimTimer.start(method(:onAnimTimer), TAIL_SPIN_TICK_MS, true);
+        mAnimTimer.start(method(:onAnimTimer), IDLE_TICK_MS, true);
+    }
+
+    function configureTimerForClip(clip as Dictionary) as Void {
+        if (mAnimTimer == null) {
+            mAnimTimer = new Timer.Timer();
         }
+        mAnimTimer.start(method(:onAnimTimer), clip[:tickMs], clip[:repeat]);
     }
 
     function onUpdate(dc as Dc) as Void {
@@ -220,21 +196,18 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         // Clip to one frame's window and blit the whole sheet shifted left,
         // rather than relying on drawBitmap2's :bitmapX/:bitmapWidth crop.
         var dogBitmap = mStandingBitmap;
-        if (mState == STATE_LICK) {
-            dogBitmap = mLickingBitmap;
-        } else if (mState == STATE_SIT_DOWN || mState == STATE_SEATED_PAUSE) {
-            dogBitmap = mStandToSitBitmap;
-        } else if (mState == STATE_STAND_UP) {
-            dogBitmap = mSitToStandBitmap;
-        } else if (mState == STATE_TAIL_SPIN) {
-            dogBitmap = mTailSpinBitmap;
+        var frameToDraw = FRAME_ORDER[mOrderIndex];
+        if (mState != STATE_IDLE) {
+            var clip = mTricks[mState][mClipIndex];
+            dogBitmap = clip[:bitmap];
+            frameToDraw = (clip[:startFrame] as Number) + mClipFrame;
         }
 
         if (dogBitmap != null) {
             var dogX = cx - (FRAME_SIZE / 2);
             var dogY = cy / 2 + pad;
             dc.setClip(dogX, dogY, FRAME_SIZE, FRAME_SIZE);
-            dc.drawBitmap(dogX - (mFrameIndex * FRAME_SIZE), dogY, dogBitmap as WatchUi.BitmapResource);
+            dc.drawBitmap(dogX - (frameToDraw * FRAME_SIZE), dogY, dogBitmap as WatchUi.BitmapResource);
             dc.clearClip();
         }
 
@@ -255,10 +228,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     function onHide() as Void {
         mStandingBitmap = null;
-        mLickingBitmap = null;
-        mSitToStandBitmap = null;
-        mStandToSitBitmap = null;
-        mTailSpinBitmap = null;
+        mTricks = null;
     }
 
     function onExitSleep() as Void {
@@ -271,7 +241,6 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         }
         mState = STATE_IDLE;
         mOrderIndex = 0;
-        mFrameIndex = FRAME_ORDER[0];
     }
 
 }

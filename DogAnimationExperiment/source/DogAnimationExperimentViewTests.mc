@@ -34,23 +34,17 @@ function testRestFrameIsFirstInOrder(logger as Test.Logger) as Boolean {
 
 (:test)
 function testTrickSelectionCanPickAllOutcomes(logger as Test.Logger) as Boolean {
-    // Rules out a selection-bias bug (e.g. Math.rand() % 3 always landing on
-    // the same branch) hiding a trick behind the others every time.
-    var sawLick = false;
-    var sawSitDown = false;
-    var sawTailSpin = false;
+    // Rules out a selection-bias bug (e.g. Math.rand() % trickCount always
+    // landing on the same branch) hiding a trick behind the others every
+    // time. trickCount here must match mTricks.size() in the view — update
+    // if a trick is added or removed.
+    var trickCount = 3;
+    var seen = {};
     for (var i = 0; i < 90; i += 1) {
-        var picked = pickTrickState(Math.rand());
-        if (picked == STATE_LICK) {
-            sawLick = true;
-        } else if (picked == STATE_SIT_DOWN) {
-            sawSitDown = true;
-        } else if (picked == STATE_TAIL_SPIN) {
-            sawTailSpin = true;
-        }
+        seen[pickTrickIndex(Math.rand(), trickCount)] = true;
     }
-    logger.debug("sawLick=" + sawLick + " sawSitDown=" + sawSitDown + " sawTailSpin=" + sawTailSpin);
-    return sawLick && sawSitDown && sawTailSpin;
+    logger.debug("distinct outcomes seen=" + seen.size() + " expected=" + trickCount);
+    return seen.size() == trickCount;
 }
 
 (:test)
@@ -90,60 +84,67 @@ function checkDrawableLoads(logger as Test.Logger, name as String, id as Resourc
 }
 
 (:test)
-function testTrickSequenceWalksSitPauseStand(logger as Test.Logger) as Boolean {
-    // Walks the full sit-down -> seated-pause -> stand-up sequence via the
-    // pure step function and asserts state+frame at each tick. This is the
-    // exact class of off-by-one state-machine bug that broke Phase 2 once.
-    var state = STATE_SIT_DOWN;
-    var frame = 0;
+function testClipProgressWalksMultiClipTrick(logger as Test.Logger) as Boolean {
+    // Walks the sit-down -> seated-pause -> stand-up trick's clip sequence
+    // via the pure step function and asserts clip index + frame at each
+    // tick. This is the exact class of off-by-one state-machine bug that
+    // broke Phase 2 once, now generalized to any multi-clip trick rather
+    // than hardcoded to this one.
+    var clips = [
+        { :frameCount => 5 }, // sit down
+        { :frameCount => 1 }, // hold seated
+        { :frameCount => 5 }, // stand back up
+    ];
+
+    var clipIndex = 0;
+    var clipFrame = 0;
     var ok = true;
     var step;
 
-    // STAND_TO_SIT_FRAME_COUNT = 5: frames 0->1->2->3->4 while still SIT_DOWN.
-    for (var i = 0; i < STAND_TO_SIT_FRAME_COUNT - 1; i += 1) {
-        step = nextTrickStep(state, frame);
-        state = step[0];
-        frame = step[1];
-        if (state != STATE_SIT_DOWN || frame != i + 1) {
-            logger.debug("sit-down step " + i + " got state=" + state + " frame=" + frame);
+    // Clip 0 (sit down): frames 0->1->2->3->4 across 5 ticks.
+    for (var i = 0; i < 4; i += 1) {
+        step = nextClipProgress(clipIndex, clipFrame, clips);
+        clipIndex = step[0];
+        clipFrame = step[1];
+        if (clipIndex != 0 || clipFrame != i + 1) {
+            logger.debug("sit-down step " + i + " got clip=" + clipIndex + " frame=" + clipFrame);
             ok = false;
         }
     }
 
-    // 5th tick: last sit-down frame reached -> switches to SEATED_PAUSE,
-    // holding on the fully-seated frame (index STAND_TO_SIT_FRAME_COUNT-1).
-    step = nextTrickStep(state, frame);
-    state = step[0];
-    frame = step[1];
-    if (state != STATE_SEATED_PAUSE || frame != STAND_TO_SIT_FRAME_COUNT - 1) {
-        logger.debug("seated-pause entry got state=" + state + " frame=" + frame);
+    // 5th tick on clip 0 completes it -> advances to clip 1 (seated pause), frame reset to 0.
+    step = nextClipProgress(clipIndex, clipFrame, clips);
+    clipIndex = step[0];
+    clipFrame = step[1];
+    if (clipIndex != 1 || clipFrame != 0) {
+        logger.debug("seated-pause entry got clip=" + clipIndex + " frame=" + clipFrame);
         ok = false;
     }
 
-    // Pause tick -> STAND_UP, frame reset to 0.
-    step = nextTrickStep(state, frame);
-    state = step[0];
-    frame = step[1];
-    if (state != STATE_STAND_UP || frame != 0) {
-        logger.debug("stand-up entry got state=" + state + " frame=" + frame);
+    // Pause tick (1-frame clip) completes immediately -> advances to clip 2 (stand up).
+    step = nextClipProgress(clipIndex, clipFrame, clips);
+    clipIndex = step[0];
+    clipFrame = step[1];
+    if (clipIndex != 2 || clipFrame != 0) {
+        logger.debug("stand-up entry got clip=" + clipIndex + " frame=" + clipFrame);
         ok = false;
     }
 
-    // SIT_TO_STAND_FRAME_COUNT = 5: frames 0->1->2->3->4 while still STAND_UP.
-    for (var j = 0; j < SIT_TO_STAND_FRAME_COUNT - 1; j += 1) {
-        step = nextTrickStep(state, frame);
-        state = step[0];
-        frame = step[1];
-        if (state != STATE_STAND_UP || frame != j + 1) {
-            logger.debug("stand-up step " + j + " got state=" + state + " frame=" + frame);
+    // Clip 2 (stand up): frames 0->1->2->3->4 across 5 ticks.
+    for (var j = 0; j < 4; j += 1) {
+        step = nextClipProgress(clipIndex, clipFrame, clips);
+        clipIndex = step[0];
+        clipFrame = step[1];
+        if (clipIndex != 2 || clipFrame != j + 1) {
+            logger.debug("stand-up step " + j + " got clip=" + clipIndex + " frame=" + clipFrame);
             ok = false;
         }
     }
 
-    // Final stand-up tick signals completion back to IDLE.
-    step = nextTrickStep(state, frame);
-    if (step[0] != STATE_IDLE) {
-        logger.debug("completion got state=" + step[0]);
+    // Final tick signals trick completion: clipIndex advances past the last clip.
+    step = nextClipProgress(clipIndex, clipFrame, clips);
+    if (step[0] < clips.size()) {
+        logger.debug("expected completion, got clip=" + step[0]);
         ok = false;
     }
 
