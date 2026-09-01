@@ -73,6 +73,12 @@ function testAllDrawablesLoad(logger as Test.Logger) as Boolean {
     ok = checkDrawableLoads(logger, "CorgiSitToStand", Rez.Drawables.CorgiSitToStand) && ok;
     ok = checkDrawableLoads(logger, "CorgiStandToSit", Rez.Drawables.CorgiStandToSit) && ok;
     ok = checkDrawableLoads(logger, "CorgiTailSpin", Rez.Drawables.CorgiTailSpin) && ok;
+    ok = checkDrawableLoads(logger, "IconShoePrints", Rez.Drawables.IconShoePrints) && ok;
+    ok = checkDrawableLoads(logger, "IconBatteryFull", Rez.Drawables.IconBatteryFull) && ok;
+    ok = checkDrawableLoads(logger, "IconBatteryThreeQuarters", Rez.Drawables.IconBatteryThreeQuarters) && ok;
+    ok = checkDrawableLoads(logger, "IconBatteryHalf", Rez.Drawables.IconBatteryHalf) && ok;
+    ok = checkDrawableLoads(logger, "IconBatteryQuarter", Rez.Drawables.IconBatteryQuarter) && ok;
+    ok = checkDrawableLoads(logger, "IconBatteryEmpty", Rez.Drawables.IconBatteryEmpty) && ok;
     return ok;
 }
 

@@ -5,4 +5,16 @@
     <bitmap id="CorgiStandToSit" filename="corgi/corgi-stand-to-sit-sheet.png" dithering="none" />
     <bitmap id="CorgiLicking" filename="corgi/corgi-licking-sheet.png" dithering="none" />
     <bitmap id="CorgiTailSpin" filename="corgi/corgi-tail-spin-sheet.png" dithering="none" />
+
+    <!-- Icons: Font Awesome Free (CC BY 4.0) — see README.md "Icons" section and
+         planning/refinement-strategy.md "Before publishing" for the attribution
+         requirement. Native SVG viewBoxes are 640x512 (battery) / 576x512
+         (shoe-prints); scaleX/scaleY below rescale to ~20px tall, aspect-correct,
+         since the resource compiler otherwise rasterizes at native SVG size. -->
+    <bitmap id="IconShoePrints" filename="icons/shoe-prints-solid.svg" dithering="none" scaleX="23" scaleY="20" />
+    <bitmap id="IconBatteryFull" filename="icons/battery-full-solid.svg" dithering="none" scaleX="25" scaleY="20" />
+    <bitmap id="IconBatteryThreeQuarters" filename="icons/battery-three-quarters-solid.svg" dithering="none" scaleX="25" scaleY="20" />
+    <bitmap id="IconBatteryHalf" filename="icons/battery-half-solid.svg" dithering="none" scaleX="25" scaleY="20" />
+    <bitmap id="IconBatteryQuarter" filename="icons/battery-quarter-solid.svg" dithering="none" scaleX="25" scaleY="20" />
+    <bitmap id="IconBatteryEmpty" filename="icons/battery-empty-solid.svg" dithering="none" scaleX="25" scaleY="20" />
 </drawables>

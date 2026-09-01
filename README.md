@@ -38,6 +38,9 @@ Used pixilart (https://www.pixilart.com/) and Claude design.
 
 A recipe for creating the pixel art has been documented and is continuously updated in [sprite-recipe.md](sprite-recipe.md) to track the strategy creation of the pixel art and to hopefully provide key insights to additional "breed" development in the future.
 
+## Icons
+UI icons (steps, battery, etc.) are sourced from [Font Awesome Free](https://fontawesome.com/) — icons are CC BY 4.0, fonts are SIL OFL 1.1, code is MIT. All three require attribution. See the "Before publishing" note in [refinement-strategy.md](planning/refinement-strategy.md) for what that means for this app specifically (a compiled `.prg` doesn't carry forward the source file's embedded license comments the way a served web asset would).
+
 # Running the project locally
 ## In simulation
 Open the `DogAnimationExperiment` folder directly as the VSCode workspace root (File > Open Folder), not the parent `garmin-experiment` repo. The Monkey C extension resolves the jungle file and manifest paths relative to the workspace root, so opening the parent folder instead causes "Connect IQ project not found" / manifest lookup errors.
