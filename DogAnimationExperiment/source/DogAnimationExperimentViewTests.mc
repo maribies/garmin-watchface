@@ -4,6 +4,31 @@ import Toybox.Test;
 import Toybox.WatchUi;
 
 (:test)
+function testBatteryIconIndexAtBoundaries(logger as Test.Logger) as Boolean {
+    // 0=full, 1=threeQuarters, 2=half, 3=quarter, 4=empty. Checks the exact
+    // threshold values (75/50/25/10) land on the lower band, not the upper
+    // one, plus the extremes (100 and 0).
+    var cases = [
+        [100, 0], [76, 0],
+        [75, 1], [51, 1],
+        [50, 2], [26, 2],
+        [25, 3], [11, 3],
+        [10, 4], [0, 4],
+    ];
+    var ok = true;
+    for (var i = 0; i < cases.size(); i += 1) {
+        var percent = cases[i][0];
+        var expected = cases[i][1];
+        var got = pickBatteryIconIndex(percent);
+        if (got != expected) {
+            logger.debug("percent=" + percent + " expected=" + expected + " got=" + got);
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+(:test)
 function testFrameOrderAdvances(logger as Test.Logger) as Boolean {
     // FRAME_ORDER = [0,1,0,2]; starting at index 0 (rest), 5 ticks should
     // walk one full cycle and one step into the next: 1,0,2,0,1.

@@ -27,6 +27,12 @@ const MAX_TRICK_DELAY_TICKS = 50;
 // indices into mTricks (0..mTricks.size()-1), built once bitmaps are loaded.
 const STATE_IDLE = -1;
 
+// Icon sizes as registered in drawables.xml (aspect-correct, ~20px tall).
+const BATTERY_ICON_WIDTH = 25;
+const BATTERY_ICON_HEIGHT = 20;
+const STEPS_ICON_WIDTH = 23;
+const STEPS_ICON_HEIGHT = 20;
+
 // Pulled out of the view so it's testable without touching private view state.
 function advanceOrderIndex(current as Number) as Number {
     return (current + 1) % FRAME_ORDER.size();
@@ -41,6 +47,21 @@ function ticksFromRandom(raw as Number) as Number {
 // Maps a raw random value to which trick (index into mTricks) plays next.
 function pickTrickIndex(raw as Number, trickCount as Number) as Number {
     return raw % trickCount;
+}
+
+// Maps a battery percentage to which battery icon to show: 0=full,
+// 1=three-quarters, 2=half, 3=quarter, 4=empty (indices into mBatteryIcons).
+function pickBatteryIconIndex(percent as Number) as Number {
+    if (percent > 75) {
+        return 0;
+    } else if (percent > 50) {
+        return 1;
+    } else if (percent > 25) {
+        return 2;
+    } else if (percent > 10) {
+        return 3;
+    }
+    return 4;
 }
 
 // One tick of progress through a trick's clip sequence, as [nextClipIndex,
@@ -59,6 +80,8 @@ function nextClipProgress(clipIndex as Number, clipFrame as Number, clips as Arr
 class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     private var mStandingBitmap = null;
+    private var mStepsIcon = null;
+    private var mBatteryIcons as Array or Null = null; // [full, threeQuarters, half, quarter, empty]
 
     // Each trick is an Array of clips ({:bitmap, :startFrame, :frameCount,
     // :tickMs, :repeat}), played in order. Adding a trick means adding one
@@ -79,6 +102,14 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     function onLayout(dc as Dc) as Void {
         mStandingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStanding);
+        mStepsIcon = WatchUi.loadResource(Rez.Drawables.IconShoePrints);
+        mBatteryIcons = [
+            WatchUi.loadResource(Rez.Drawables.IconBatteryFull),
+            WatchUi.loadResource(Rez.Drawables.IconBatteryThreeQuarters),
+            WatchUi.loadResource(Rez.Drawables.IconBatteryHalf),
+            WatchUi.loadResource(Rez.Drawables.IconBatteryQuarter),
+            WatchUi.loadResource(Rez.Drawables.IconBatteryEmpty),
+        ];
         var lickingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiLicking);
         var sitToStandBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSitToStand);
         var standToSitBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStandToSit);
@@ -170,7 +201,80 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_WHITE);
         dc.clear();
 
-        // Time
+        // Battery — icon, top center.
+        drawBattery(dc, cx, pad);
+
+        // Dog sprite — current animation frame, roughly centered (nudged up
+        // slightly to leave breathing room for the time/date block below).
+        var dogPos = drawDog(dc, cx, cy);
+
+        // Steps — icon above value, stacked, to the left of the dog.
+        drawSteps(dc, dogPos[0], dogPos[1]);
+
+        // Time + date — bottom center, time larger/prominent, date small
+        // beneath it, whole block anchored to the bottom padding.
+        drawTimeDate(dc, cx, height, pad);
+    }
+
+    // Battery icon, level-selected, centered horizontally at the given y.
+    private function drawBattery(dc as Dc, cx as Number, y as Number) as Void {
+        var stats = System.getSystemStats();
+        var battery = stats.battery.toNumber();
+        var batteryIcon = mBatteryIcons[pickBatteryIconIndex(battery)];
+        if (batteryIcon != null) {
+            dc.drawBitmap(cx - (BATTERY_ICON_WIDTH / 2), y, batteryIcon as WatchUi.BitmapResource);
+        }
+    }
+
+    // Draws the current animation frame, centered around (cx, cy) and nudged
+    // up slightly to leave room for the time/date block below. Clips to one
+    // frame's window and blits the whole sheet shifted left, rather than
+    // relying on drawBitmap2's :bitmapX/:bitmapWidth crop. Returns [dogX,
+    // dogY] so other elements (like steps) can position relative to it.
+    private function drawDog(dc as Dc, cx as Number, cy as Number) as Array<Number> {
+        var dogBitmap = mStandingBitmap;
+        var frameToDraw = FRAME_ORDER[mOrderIndex];
+        if (mState != STATE_IDLE) {
+            var clip = mTricks[mState][mClipIndex];
+            dogBitmap = clip[:bitmap];
+            frameToDraw = (clip[:startFrame] as Number) + mClipFrame;
+        }
+
+        var dogX = cx - (FRAME_SIZE / 2);
+        var dogY = cy - (FRAME_SIZE / 2) - 10;
+        if (dogBitmap != null) {
+            dc.setClip(dogX, dogY, FRAME_SIZE, FRAME_SIZE);
+            dc.drawBitmap(dogX - (frameToDraw * FRAME_SIZE), dogY, dogBitmap as WatchUi.BitmapResource);
+            dc.clearClip();
+        }
+
+        return [dogX, dogY];
+    }
+
+    // Steps icon above value, stacked, to the left of the dog at (dogX, dogY).
+    private function drawSteps(dc as Dc, dogX as Number, dogY as Number) as Void {
+        var steps = 0;
+        var activityInfo = ActivityMonitor.getInfo();
+        if (activityInfo != null && activityInfo.steps != null) {
+            steps = activityInfo.steps as Number;
+        }
+        var stepsColumnX = dogX / 2;
+        var stepsIconY = (dogY + FRAME_SIZE / 2) - STEPS_ICON_HEIGHT - 2;
+        if (mStepsIcon != null) {
+            dc.drawBitmap(stepsColumnX - (STEPS_ICON_WIDTH / 2), stepsIconY, mStepsIcon as WatchUi.BitmapResource);
+        }
+        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(stepsColumnX, stepsIconY + STEPS_ICON_HEIGHT + 2, Graphics.FONT_SYSTEM_XTINY, steps.toString(), Graphics.TEXT_JUSTIFY_CENTER);
+    }
+
+    // Time (large, prominent) above date (small), bottom center, whole block
+    // anchored to the bottom padding.
+    private function drawTimeDate(dc as Dc, cx as Number, height as Number, pad as Number) as Void {
+        var dateHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_XTINY);
+        var timeHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_LARGE);
+        var dateY = height - pad - dateHeight;
+        var timeY = dateY - timeHeight;
+
         var clockTime = System.getClockTime();
         var hours = clockTime.hour;
         var deviceSettings = System.getDeviceSettings();
@@ -183,51 +287,18 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         }
         var timeString = Lang.format("$1$:$2$", [hours, clockTime.min.format("%02d")]);
         dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, pad, Graphics.FONT_SYSTEM_LARGE, timeString, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(cx, timeY, Graphics.FONT_SYSTEM_LARGE, timeString, Graphics.TEXT_JUSTIFY_CENTER);
 
-        // Date
         var today = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
         var dateString = Lang.format("$1$ $2$ $3$", [today.day_of_week, today.month, today.day]);
         dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
-        var timeHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_LARGE);
-        dc.drawText(cx, timeHeight + pad, Graphics.FONT_SYSTEM_XTINY, dateString, Graphics.TEXT_JUSTIFY_CENTER);
-
-        // Dog sprite — current animation frame, centered horizontally.
-        // Clip to one frame's window and blit the whole sheet shifted left,
-        // rather than relying on drawBitmap2's :bitmapX/:bitmapWidth crop.
-        var dogBitmap = mStandingBitmap;
-        var frameToDraw = FRAME_ORDER[mOrderIndex];
-        if (mState != STATE_IDLE) {
-            var clip = mTricks[mState][mClipIndex];
-            dogBitmap = clip[:bitmap];
-            frameToDraw = (clip[:startFrame] as Number) + mClipFrame;
-        }
-
-        if (dogBitmap != null) {
-            var dogX = cx - (FRAME_SIZE / 2);
-            var dogY = cy / 2 + pad;
-            dc.setClip(dogX, dogY, FRAME_SIZE, FRAME_SIZE);
-            dc.drawBitmap(dogX - (frameToDraw * FRAME_SIZE), dogY, dogBitmap as WatchUi.BitmapResource);
-            dc.clearClip();
-        }
-
-        // Steps
-        var steps = 0;
-        var activityInfo = ActivityMonitor.getInfo();
-        if (activityInfo != null && activityInfo.steps != null) {
-            steps = activityInfo.steps as Number;
-        }
-        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx - cx / 2, cy + cy / 2, Graphics.FONT_SYSTEM_XTINY, steps.toString() + " steps", Graphics.TEXT_JUSTIFY_LEFT);
-
-        // Battery
-        var stats = System.getSystemStats();
-        var battery = stats.battery.toNumber();
-        dc.drawText(cx + cx / 2, cy + cy / 2, Graphics.FONT_SYSTEM_XTINY, battery.toString() + "%", Graphics.TEXT_JUSTIFY_RIGHT);
+        dc.drawText(cx, dateY, Graphics.FONT_SYSTEM_XTINY, dateString, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     function onHide() as Void {
         mStandingBitmap = null;
+        mStepsIcon = null;
+        mBatteryIcons = null;
         mTricks = null;
     }
 
