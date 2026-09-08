@@ -1,5 +1,6 @@
 import Toybox.ActivityMonitor;
 import Toybox.Application;
+import Toybox.Application.Properties;
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.Math;
@@ -62,6 +63,40 @@ function pickBatteryIconIndex(percent as Number) as Number {
         return 3;
     }
     return 4;
+}
+
+// True if every R/G/B channel of a 24-bit color is one of {0x00, 0x55, 0xAA,
+// 0xFF} — the 4 levels ARGB2222 displays (fenix7s/fenix7spro) actually
+// render. A channel outside that set gets silently shifted to the nearest
+// one at render time, which is what turned our sprite gray yellow in Phase 1.
+function isArgb2222Safe(color as Number) as Boolean {
+    var safeLevels = [0x00, 0x55, 0xAA, 0xFF];
+    var r = (color >> 16) & 0xFF;
+    var g = (color >> 8) & 0xFF;
+    var b = color & 0xFF;
+    return safeLevels.indexOf(r) != -1 && safeLevels.indexOf(g) != -1 && safeLevels.indexOf(b) != -1;
+}
+
+// Steps a single channel value down one level in the ARGB2222-safe ladder
+// (0xFF -> 0xAA -> 0x55 -> 0x00, floor at 0x00).
+function stepDownChannel(channel as Number) as Number {
+    if (channel >= 0xFF) {
+        return 0xAA;
+    } else if (channel >= 0xAA) {
+        return 0x55;
+    }
+    return 0x00;
+}
+
+// Darkens a color by stepping each R/G/B channel down one level in the
+// ARGB2222-safe ladder, staying safe by construction. Used to derive
+// secondary text color from the selected background — a tint of the same
+// hue rather than a fixed gray that clashes with whichever color is picked.
+function darkerTint(color as Number) as Number {
+    var r = stepDownChannel((color >> 16) & 0xFF);
+    var g = stepDownChannel((color >> 8) & 0xFF);
+    var b = stepDownChannel(color & 0xFF);
+    return (r << 16) | (g << 8) | b;
 }
 
 // One tick of progress through a trick's clip sequence, as [nextClipIndex,
@@ -197,9 +232,15 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var cy = height / 2;
         var pad = 10;
 
-        // Background
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_WHITE);
+        // Background — user-configurable via Settings (Properties.BackgroundColor).
+        var backgroundColor = Properties.getValue("BackgroundColor") as Number;
+        dc.setColor(backgroundColor, backgroundColor);
         dc.clear();
+
+        // Subtext (steps count, date) is derived from the background so it
+        // reads as a matching tint of whichever color is picked, instead of
+        // a fixed gray that can clash. Time stays plain black.
+        var subtextColor = darkerTint(backgroundColor);
 
         // Battery — icon, top center.
         drawBattery(dc, cx, pad);
@@ -209,11 +250,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var dogPos = drawDog(dc, cx, cy);
 
         // Steps — icon above value, stacked, to the left of the dog.
-        drawSteps(dc, dogPos[0], dogPos[1]);
+        drawSteps(dc, dogPos[0], dogPos[1], subtextColor);
 
         // Time + date — bottom center, time larger/prominent, date small
         // beneath it, whole block anchored to the bottom padding.
-        drawTimeDate(dc, cx, height, pad);
+        drawTimeDate(dc, cx, height, pad, subtextColor);
     }
 
     // Battery icon, level-selected, centered horizontally at the given y.
@@ -252,7 +293,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     // Steps icon above value, stacked, to the left of the dog at (dogX, dogY).
-    private function drawSteps(dc as Dc, dogX as Number, dogY as Number) as Void {
+    private function drawSteps(dc as Dc, dogX as Number, dogY as Number, subtextColor as Number) as Void {
         var steps = 0;
         var activityInfo = ActivityMonitor.getInfo();
         if (activityInfo != null && activityInfo.steps != null) {
@@ -263,13 +304,13 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         if (mStepsIcon != null) {
             dc.drawBitmap(stepsColumnX - (STEPS_ICON_WIDTH / 2), stepsIconY, mStepsIcon as WatchUi.BitmapResource);
         }
-        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(subtextColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(stepsColumnX, stepsIconY + STEPS_ICON_HEIGHT + 2, Graphics.FONT_SYSTEM_XTINY, steps.toString(), Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     // Time (large, prominent) above date (small), bottom center, whole block
     // anchored to the bottom padding.
-    private function drawTimeDate(dc as Dc, cx as Number, height as Number, pad as Number) as Void {
+    private function drawTimeDate(dc as Dc, cx as Number, height as Number, pad as Number, dateColor as Number) as Void {
         var dateHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_XTINY);
         var timeHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_LARGE);
         var dateY = height - pad - dateHeight;
@@ -277,8 +318,8 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
         var clockTime = System.getClockTime();
         var hours = clockTime.hour;
-        var deviceSettings = System.getDeviceSettings();
-        if (!deviceSettings.is24Hour) {
+        var useMilitaryFormat = Properties.getValue("UseMilitaryFormat") as Boolean;
+        if (!useMilitaryFormat) {
             if (hours == 0) {
                 hours = 12;
             } else if (hours > 12) {
@@ -291,7 +332,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
         var today = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
         var dateString = Lang.format("$1$ $2$ $3$", [today.day_of_week, today.month, today.day]);
-        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(dateColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, dateY, Graphics.FONT_SYSTEM_XTINY, dateString, Graphics.TEXT_JUSTIFY_CENTER);
     }
 

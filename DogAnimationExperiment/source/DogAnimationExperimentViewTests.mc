@@ -4,6 +4,61 @@ import Toybox.Test;
 import Toybox.WatchUi;
 
 (:test)
+function testBackgroundColorsAreArgb2222Safe(logger as Test.Logger) as Boolean {
+    // Must match the listEntry values in resources/settings/settings.xml
+    // exactly — this test is only meaningful if it's checking the actual
+    // shipped palette, not a stand-in.
+    var colors = {
+        "LightRed" => 0xFFAAAA,
+        "LightBlue" => 0xAAAAFF,
+        "LightYellow" => 0xFFFFAA,
+        "LightGreen" => 0xAAFFAA,
+        "LightPurple" => 0xFFAAFF,
+        "LightOrange" => 0xFFAA55,
+    };
+    var ok = true;
+    var names = colors.keys();
+    for (var i = 0; i < names.size(); i += 1) {
+        var name = names[i];
+        var color = colors[name];
+        var safe = isArgb2222Safe(color);
+        if (!safe) {
+            logger.debug(name + "=0x" + color.format("%X") + " is not ARGB2222-safe");
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+(:test)
+function testDarkerTintStepsDownSafeLadder(logger as Test.Logger) as Boolean {
+    // darkerTint must produce a color that's still ARGB2222-safe (each
+    // channel stays in the {0x00,0x55,0xAA,0xFF} ladder) since it's used to
+    // derive on-screen subtext color directly from the user's chosen background.
+    var cases = [
+        // [color, expected]
+        [0xFFAAAA, 0xAA5555],
+        [0xAAAAFF, 0x5555AA],
+        [0xFFFFAA, 0xAAAA55],
+    ];
+    var ok = true;
+    for (var i = 0; i < cases.size(); i += 1) {
+        var color = cases[i][0];
+        var expected = cases[i][1];
+        var got = darkerTint(color);
+        if (got != expected) {
+            logger.debug("color=0x" + color.format("%X") + " expected=0x" + expected.format("%X") + " got=0x" + got.format("%X"));
+            ok = false;
+        }
+        if (!isArgb2222Safe(got)) {
+            logger.debug("darkerTint(0x" + color.format("%X") + ") = 0x" + got.format("%X") + " is not ARGB2222-safe");
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+(:test)
 function testBatteryIconIndexAtBoundaries(logger as Test.Logger) as Boolean {
     // 0=full, 1=threeQuarters, 2=half, 3=quarter, 4=empty. Checks the exact
     // threshold values (75/50/25/10) land on the lower band, not the upper
