@@ -100,6 +100,12 @@ Unit tests live alongside the source they cover, in files ending `Tests.mc` (e.g
 ## Via VSCode
 Open the Testing sidebar (flask icon), or use the Command Palette: "Monkey C: Run Test Explorer".
 
+## Via script
+`scripts/build.sh` builds every device the manifest declares, then builds and runs the test suite on `fenix7s` — the same sequence otherwise typed by hand. Auto-detects the installed SDK; override with `CONNECTIQ_SDK_HOME` if more than one is installed.
+```
+scripts/build.sh
+```
+
 ## Via CLI
 Useful when you want plain PASS/FAIL output without driving the simulator UI (`monkeyc`/`monkeydo` are in the Connect IQ SDK's `bin/` folder; check VSCode's Monkey C SDK setting if they're not on your `PATH`):
 
