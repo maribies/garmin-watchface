@@ -82,6 +82,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mClipFrame = 0; // trick only: 0-based frame progress within the current clip
     private var mTicksUntilTrick = MIN_TRICK_DELAY_TICKS;
 
+    // Cached formatted date string, recomputed only when the hour changes
+    // (see drawTimeDate).
+    private var mCachedDateString as String or Null = null;
+    private var mCachedDateHour as Number or Null = null;
+
     function initialize() {
         WatchFace.initialize();
     }
@@ -458,10 +463,16 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, timeY, Graphics.FONT_SYSTEM_LARGE, timeString, Graphics.TEXT_JUSTIFY_CENTER);
 
-        var today = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
-        var dateString = Lang.format("$1$ $2$ $3$", [today.day_of_week, today.month, today.day]);
+        // The date only changes once a day; Gregorian.info() does real
+        // calendar math, so only redo it when the hour we already have on
+        // hand has changed, rather than on every draw.
+        if (mCachedDateString == null || clockTime.hour != mCachedDateHour) {
+            var today = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
+            mCachedDateString = Lang.format("$1$ $2$ $3$", [today.day_of_week, today.month, today.day]);
+            mCachedDateHour = clockTime.hour;
+        }
         dc.setColor(dateColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, dateY, Graphics.FONT_SYSTEM_XTINY, dateString, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(cx, dateY, Graphics.FONT_SYSTEM_XTINY, mCachedDateString, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     function onHide() as Void {
