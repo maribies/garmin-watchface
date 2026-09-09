@@ -87,6 +87,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mCachedDateString as String or Null = null;
     private var mCachedDateHour as Number or Null = null;
 
+    // Refreshed once per drawFields() call, read by multiple value-provider
+    // methods so they don't each fetch the same data independently.
+    private var mCurrentActivityInfo as ActivityMonitor.Info or Null = null;
+    private var mCurrentDeviceSettings as System.DeviceSettings or Null = null;
+
     function initialize() {
         WatchFace.initialize();
     }
@@ -269,6 +274,13 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     // top-left/right in that order. Nothing clips against the dog sprite,
     // so a wide value can overlap it.
     private function drawFields(dc as Dc, cx as Number, cy as Number, height as Number, pad as Number, subtextColor as Number) as Void {
+        // Fetched once per frame and read by the value-provider methods
+        // below, rather than each of them calling these independently —
+        // up to 5 fields share mCurrentActivityInfo, up to 3 share
+        // mCurrentDeviceSettings.
+        mCurrentActivityInfo = ActivityMonitor.getInfo();
+        mCurrentDeviceSettings = System.getDeviceSettings();
+
         var enabled = new [mFieldDefs.size()];
         for (var i = 0; i < mFieldDefs.size(); i += 1) {
             enabled[i] = Properties.getValue(mFieldDefs[i][:propertyKey]) as Boolean;
@@ -353,10 +365,9 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     function stepsValue() as String {
-        var activityInfo = ActivityMonitor.getInfo();
         var steps = null;
-        if (activityInfo != null) {
-            steps = activityInfo.steps;
+        if (mCurrentActivityInfo != null) {
+            steps = mCurrentActivityInfo.steps;
         }
         return formatSteps(steps);
     }
@@ -382,7 +393,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         if (conditions == null) {
             return "--/--";
         }
-        var useStatute = System.getDeviceSettings().temperatureUnits == System.UNIT_STATUTE;
+        var useStatute = mCurrentDeviceSettings.temperatureUnits == System.UNIT_STATUTE;
         return formatTemperatureRange(conditions.highTemperature, conditions.lowTemperature, useStatute);
     }
 
@@ -402,43 +413,39 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     function caloriesValue() as String {
-        var activityInfo = ActivityMonitor.getInfo();
         var calories = null;
-        if (activityInfo != null) {
-            calories = activityInfo.calories;
+        if (mCurrentActivityInfo != null) {
+            calories = mCurrentActivityInfo.calories;
         }
         return formatFieldValue(calories, "");
     }
 
     function notificationsValue() as String {
-        return formatFieldValue(System.getDeviceSettings().notificationCount, "");
+        return formatFieldValue(mCurrentDeviceSettings.notificationCount, "");
     }
 
     function floorsValue() as String {
-        var activityInfo = ActivityMonitor.getInfo();
         var floors = null;
-        if (activityInfo != null) {
-            floors = activityInfo.floorsClimbed;
+        if (mCurrentActivityInfo != null) {
+            floors = mCurrentActivityInfo.floorsClimbed;
         }
         return formatFieldValue(floors, "");
     }
 
     function intensityMinutesValue() as String {
-        var activityInfo = ActivityMonitor.getInfo();
         var minutes = null;
-        if (activityInfo != null && activityInfo.activeMinutesWeek != null) {
-            minutes = activityInfo.activeMinutesWeek.total;
+        if (mCurrentActivityInfo != null && mCurrentActivityInfo.activeMinutesWeek != null) {
+            minutes = mCurrentActivityInfo.activeMinutesWeek.total;
         }
         return formatFieldValue(minutes, "");
     }
 
     function distanceValue() as String {
-        var activityInfo = ActivityMonitor.getInfo();
         var distance = null;
-        if (activityInfo != null) {
-            distance = activityInfo.distance;
+        if (mCurrentActivityInfo != null) {
+            distance = mCurrentActivityInfo.distance;
         }
-        var useStatute = System.getDeviceSettings().distanceUnits == System.UNIT_STATUTE;
+        var useStatute = mCurrentDeviceSettings.distanceUnits == System.UNIT_STATUTE;
         return formatDistance(distance, useStatute);
     }
 
