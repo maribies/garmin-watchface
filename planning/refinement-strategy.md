@@ -47,9 +47,13 @@ Surfaced by the in-depth review mentioned above. Both items block Phase A/B unti
    **Each field renders icon-above-value**, tightly stacked (`FIELD_ICON_TEXT_GAP`), with the icon and value sharing one anchor edge (both left-aligned for left-column fields, both right-aligned for right-column) rather than centered relative to each other — since they're rarely the same width, this reads as intentionally off-center and only needs as much room as the wider of the two, not their sum. Icons draw at 80% of native size (`FIELD_ICON_SCALE`, via `drawScaledBitmap`) so they read as a subordinate accent next to the value.
 
    A `TEMPORARY` hardcoded heart-rate/body-battery override used mid-development to check layout against worst-case text width has been reverted — both read live data again.
+
+   **Post-completion review** consolidated `FIELD_ICON_WIDTHS`/`mFieldIcons`/inline property-key strings into one `mFieldDefs` list (propertyKey/icon/width/value-provider per field, instead of four arrays that had to stay in sync by convention), replaced `weatherIconKey()`'s if/`||` chain with a Dictionary lookup, and switched `positionCoords` from positional tuples to named Dictionary fields. Caught a real crash along the way: **`method(:symbolName)` can't bind to a `private` instance method in this SDK** — referencing 8 `private function` value-providers via `method()` in `mFieldDefs` crashed `onLayout()` at runtime ("Failed invoking `<symbol>`"), invisible to the unit tests since none of them exercise `onLayout()`. Fixed by dropping `private` from those methods. Worth remembering for any future `method()` callback.
 4. Second dog breed stays deferred, unscoped, per the original notes' "eventually."
 
 **Verification:** Each new icon/color/field checked live in the simulator — pixel alignment, `ARGB2222` color fidelity, and (for weather) the fallback state when `CurrentConditions` is null.
+
+**Phase A is complete.** All three scoped items (icons, background colors, configurable data fields) are done and verified live; the second dog breed was never in scope for this phase. Clear to start Phase B.
 
 ---
 
