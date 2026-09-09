@@ -4,11 +4,13 @@ import Toybox.Application.Properties;
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.Math;
+import Toybox.SensorHistory;
 import Toybox.System;
 import Toybox.Time;
 import Toybox.Time.Gregorian;
 import Toybox.Timer;
 import Toybox.WatchUi;
+import Toybox.Weather;
 
 // All corgi sprite sheets use 120x120 frames.
 const FRAME_SIZE = 120;
@@ -31,8 +33,33 @@ const STATE_IDLE = -1;
 // Icon sizes as registered in drawables.xml (aspect-correct, ~20px tall).
 const BATTERY_ICON_WIDTH = 25;
 const BATTERY_ICON_HEIGHT = 20;
-const STEPS_ICON_WIDTH = 23;
-const STEPS_ICON_HEIGHT = 20;
+
+// Configurable fields, in fixed evaluation order: steps, heart rate,
+// weather, body battery, calories, notifications, floors climbed,
+// intensity minutes, distance. Widths match each icon's native scaleX in
+// drawables.xml (all natively scaleY=20 tall) — drawn smaller at runtime
+// per FIELD_ICON_SCALE, see drawField. Index 2 (weather) is a placeholder —
+// its icon is condition-dependent, looked up from mWeatherIcons instead,
+// see drawFields.
+const FIELD_ICON_WIDTHS = [23, 20, 23, 20, 18, 20, 23, 18, 18];
+const FIELD_ICON_HEIGHT = 20;
+const FIELD_INDEX_WEATHER = 2;
+
+// Icons are drawn slightly smaller than their native size (via
+// drawScaledBitmap) so they read as a subordinate accent next to the value
+// rather than competing with it for attention.
+const FIELD_ICON_SCALE = 0.8;
+
+// Vertical gap between an icon and its value, stacked tightly.
+const FIELD_ICON_TEXT_GAP = 2;
+
+// Margin kept between a field and the watch's actual round edge (see
+// chordHalfWidthAt) so content doesn't crowd the bezel.
+const FIELD_EDGE_MARGIN = 8;
+
+// Of the 9 candidate fields, at most this many are shown at once (3 rows x
+// 2 columns) — see assignFieldPositions.
+const MAX_VISIBLE_FIELDS = 6;
 
 // Pulled out of the view so it's testable without touching private view state.
 function advanceOrderIndex(current as Number) as Number {
@@ -99,6 +126,151 @@ function darkerTint(color as Number) as Number {
     return (r << 16) | (g << 8) | b;
 }
 
+// Formats a field's numeric value for display, or "--" if unavailable (no
+// sensor reading yet, feature unsupported on this device, etc).
+function formatFieldValue(value as Number or Null, suffix as String) as String {
+    if (value == null) {
+        return "--";
+    }
+    return value.toString() + suffix;
+}
+
+// Formats a step count: raw below 100,000 (its narrow column can't fit 6
+// digits), abbreviated to the nearest thousand at or above it, prefixed
+// with "+" since every bucket is a floor, not an exact count (100000-100999
+// -> "+100k", 101000-101999 -> "+101k", 200000-200999 -> "+200k") — the "+"
+// applies uniformly rather than just to the first bucket, since "101k" is
+// just as much a rounded-down approximation as "100k" is.
+function formatSteps(steps as Number or Null) as String {
+    if (steps == null) {
+        return "--";
+    }
+    if (steps < 100000) {
+        return steps.toString();
+    }
+    return "+" + (steps / 1000).toString() + "k";
+}
+
+// Converts a Celsius reading to the requested display unit and rounds to a
+// whole number for display, or "--" if the reading is unavailable.
+function formatTemperature(celsiusValue as Float or Null, useStatute as Boolean) as String {
+    if (celsiusValue == null) {
+        return "--";
+    }
+    var displayValue = celsiusValue;
+    if (useStatute) {
+        displayValue = (celsiusValue * 9.0 / 5.0) + 32.0;
+    }
+    return displayValue.toNumber().toString();
+}
+
+// Formats a hi/lo temperature pair as "hi/lo", each side independently
+// falling back to "--" if unavailable.
+function formatTemperatureRange(highCelsius as Float or Null, lowCelsius as Float or Null, useStatute as Boolean) as String {
+    return formatTemperature(highCelsius, useStatute) + "/" + formatTemperature(lowCelsius, useStatute);
+}
+
+// Y-coordinate where the time text begins (top of the time+date block).
+// Shared by drawTimeDate (to draw it) and drawFields (so field rows know
+// where the available vertical band ends without overlapping it).
+function timeBlockTopY(height as Number, pad as Number) as Number {
+    var dateHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_XTINY);
+    var timeHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_LARGE);
+    return height - pad - dateHeight - timeHeight;
+}
+
+// Half-width of the round screen's visible chord at a given y (distance
+// from vertical/horizontal center — every currently supported device is a
+// round, square-pixel-buffer display, so radius == cx == cy). Lets fields
+// be positioned relative to the watch's actual edge rather than the dog
+// sprite. Returns 0 once y is at or past the very top/bottom of the circle.
+function chordHalfWidthAt(y as Number, cx as Number, cy as Number) as Number {
+    var dy = y - cy;
+    if (dy < 0) {
+        dy = -dy;
+    }
+    if (dy >= cx) {
+        return 0;
+    }
+    return Math.sqrt((cx * cx) - (dy * dy)).toNumber();
+}
+
+// Maps which fields are enabled (fixed evaluation order — see
+// FIELD_ICON_WIDTHS' comment) to position indices 0..5 in fill order:
+// bottom-left, bottom-right, middle-left, middle-right, top-left,
+// top-right — the face grows upward as more fields are turned on, staying
+// balanced regardless of which specific fields are enabled. Returns an
+// Array the same length as `enabled`; each entry is a position index, or
+// null if that field is off (or all MAX_VISIBLE_FIELDS slots are already
+// filled by earlier fields in evaluation order).
+function assignFieldPositions(enabled as Array<Boolean>) as Array {
+    var positions = new [enabled.size()];
+    var nextPosition = 0;
+    for (var i = 0; i < enabled.size(); i += 1) {
+        if (enabled[i] && nextPosition < MAX_VISIBLE_FIELDS) {
+            positions[i] = nextPosition;
+            nextPosition += 1;
+        } else {
+            positions[i] = null;
+        }
+    }
+    return positions;
+}
+
+// Converts a distance in centimeters to the device's configured unit
+// (kilometers or miles) and formats to one decimal place, or "--" if
+// unavailable.
+function formatDistance(centimeters as Number or Null, useStatute as Boolean) as String {
+    if (centimeters == null) {
+        return "--";
+    }
+    var displayValue = centimeters / 100000.0; // cm -> km
+    if (useStatute) {
+        displayValue = centimeters / 160934.4; // cm -> miles
+    }
+    var tenths = (displayValue * 10 + 0.5).toNumber();
+    var whole = tenths / 10;
+    var frac = tenths % 10;
+    return whole.toString() + "." + frac.toString();
+}
+
+// Maps a Weather.Condition value to which weather icon family to show:
+// clear-family -> sun, partly cloudy -> cloud+sun, cloudy family -> cloud,
+// rain family -> cloud+rain, thunderstorm family -> cloud+bolt, snow/wintry
+// family -> snowflake. Anything else (windy, fog, hazy, mist, dust,
+// tornado, etc.) or no reading at all (condition == null) falls back to a
+// generic thermometer rather than trying to cover every one of the ~35
+// Weather.Condition values with a dedicated icon.
+function weatherIconKey(condition as Number or Null) as Symbol {
+    if (condition == Weather.CONDITION_CLEAR || condition == Weather.CONDITION_PARTLY_CLEAR || condition == Weather.CONDITION_MOSTLY_CLEAR) {
+        return :sun;
+    }
+    if (condition == Weather.CONDITION_PARTLY_CLOUDY) {
+        return :cloudSun;
+    }
+    if (condition == Weather.CONDITION_MOSTLY_CLOUDY || condition == Weather.CONDITION_CLOUDY) {
+        return :cloud;
+    }
+    if (condition == Weather.CONDITION_RAIN || condition == Weather.CONDITION_LIGHT_RAIN || condition == Weather.CONDITION_HEAVY_RAIN
+        || condition == Weather.CONDITION_SCATTERED_SHOWERS || condition == Weather.CONDITION_LIGHT_SHOWERS
+        || condition == Weather.CONDITION_SHOWERS || condition == Weather.CONDITION_HEAVY_SHOWERS
+        || condition == Weather.CONDITION_CHANCE_OF_SHOWERS || condition == Weather.CONDITION_DRIZZLE
+        || condition == Weather.CONDITION_UNKNOWN_PRECIPITATION) {
+        return :cloudRain;
+    }
+    if (condition == Weather.CONDITION_THUNDERSTORMS || condition == Weather.CONDITION_SCATTERED_THUNDERSTORMS
+        || condition == Weather.CONDITION_CHANCE_OF_THUNDERSTORMS) {
+        return :cloudBolt;
+    }
+    if (condition == Weather.CONDITION_SNOW || condition == Weather.CONDITION_LIGHT_SNOW || condition == Weather.CONDITION_HEAVY_SNOW
+        || condition == Weather.CONDITION_WINTRY_MIX || condition == Weather.CONDITION_LIGHT_RAIN_SNOW
+        || condition == Weather.CONDITION_HEAVY_RAIN_SNOW || condition == Weather.CONDITION_RAIN_SNOW
+        || condition == Weather.CONDITION_HAIL) {
+        return :snowflake;
+    }
+    return :thermometer;
+}
+
 // One tick of progress through a trick's clip sequence, as [nextClipIndex,
 // nextClipFrame]. clips only needs each entry's :frameCount for this. If
 // nextClipIndex >= clips.size(), the trick is complete — the caller is
@@ -115,8 +287,17 @@ function nextClipProgress(clipIndex as Number, clipFrame as Number, clips as Arr
 class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     private var mStandingBitmap = null;
-    private var mStepsIcon = null;
     private var mBatteryIcons as Array or Null = null; // [full, threeQuarters, half, quarter, empty]
+
+    // Configurable-field icons, aligned with FIELD_ICON_WIDTHS' order:
+    // [steps, heart rate, weather, body battery, calories, notifications,
+    // floors, intensity minutes, distance]. Weather's slot is unused (null)
+    // — its icon is condition-dependent, see mWeatherIcons.
+    private var mFieldIcons as Array or Null = null;
+
+    // Weather icon variants, keyed by weatherIconKey()'s result. Each entry
+    // is {:icon, :width} since the icons aren't all the same width.
+    private var mWeatherIcons as Dictionary or Null = null;
 
     // Each trick is an Array of clips ({:bitmap, :startFrame, :frameCount,
     // :tickMs, :repeat}), played in order. Adding a trick means adding one
@@ -137,7 +318,26 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     function onLayout(dc as Dc) as Void {
         mStandingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStanding);
-        mStepsIcon = WatchUi.loadResource(Rez.Drawables.IconShoePrints);
+        mFieldIcons = [
+            WatchUi.loadResource(Rez.Drawables.IconShoePrints),
+            WatchUi.loadResource(Rez.Drawables.IconHeart),
+            null,
+            WatchUi.loadResource(Rez.Drawables.IconGauge),
+            WatchUi.loadResource(Rez.Drawables.IconFire),
+            WatchUi.loadResource(Rez.Drawables.IconMessage),
+            WatchUi.loadResource(Rez.Drawables.IconStairs),
+            WatchUi.loadResource(Rez.Drawables.IconStopwatch),
+            WatchUi.loadResource(Rez.Drawables.IconPersonRunning),
+        ];
+        mWeatherIcons = {
+            :sun => { :icon => WatchUi.loadResource(Rez.Drawables.IconSun), :width => 23 },
+            :cloudSun => { :icon => WatchUi.loadResource(Rez.Drawables.IconCloudSun), :width => 25 },
+            :cloud => { :icon => WatchUi.loadResource(Rez.Drawables.IconCloud), :width => 23 },
+            :cloudRain => { :icon => WatchUi.loadResource(Rez.Drawables.IconCloudRain), :width => 20 },
+            :cloudBolt => { :icon => WatchUi.loadResource(Rez.Drawables.IconCloudBolt), :width => 20 },
+            :snowflake => { :icon => WatchUi.loadResource(Rez.Drawables.IconSnowflake), :width => 20 },
+            :thermometer => { :icon => WatchUi.loadResource(Rez.Drawables.IconTemperatureHalf), :width => 13 },
+        };
         mBatteryIcons = [
             WatchUi.loadResource(Rez.Drawables.IconBatteryFull),
             WatchUi.loadResource(Rez.Drawables.IconBatteryThreeQuarters),
@@ -247,10 +447,14 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
         // Dog sprite — current animation frame, roughly centered (nudged up
         // slightly to leave breathing room for the time/date block below).
-        var dogPos = drawDog(dc, cx, cy);
+        drawDog(dc, cx, cy);
 
-        // Steps — icon above value, stacked, to the left of the dog.
-        drawSteps(dc, dogPos[0], dogPos[1], subtextColor);
+        // Configurable fields — up to 4, positioned relative to the watch's
+        // actual round edge rather than the dog sprite. Position is derived
+        // from which are enabled, not individually chosen: the first
+        // enabled field takes left-upper, the second right-upper, the
+        // third left-lower, the fourth right-lower.
+        drawFields(dc, cx, cy, height, pad, subtextColor);
 
         // Time + date — bottom center, time larger/prominent, date small
         // beneath it, whole block anchored to the bottom padding.
@@ -270,9 +474,8 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     // Draws the current animation frame, centered around (cx, cy) and nudged
     // up slightly to leave room for the time/date block below. Clips to one
     // frame's window and blits the whole sheet shifted left, rather than
-    // relying on drawBitmap2's :bitmapX/:bitmapWidth crop. Returns [dogX,
-    // dogY] so other elements (like steps) can position relative to it.
-    private function drawDog(dc as Dc, cx as Number, cy as Number) as Array<Number> {
+    // relying on drawBitmap2's :bitmapX/:bitmapWidth crop.
+    private function drawDog(dc as Dc, cx as Number, cy as Number) as Void {
         var dogBitmap = mStandingBitmap;
         var frameToDraw = FRAME_ORDER[mOrderIndex];
         if (mState != STATE_IDLE) {
@@ -288,33 +491,228 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             dc.drawBitmap(dogX - (frameToDraw * FRAME_SIZE), dogY, dogBitmap as WatchUi.BitmapResource);
             dc.clearClip();
         }
-
-        return [dogX, dogY];
     }
 
-    // Steps icon above value, stacked, to the left of the dog at (dogX, dogY).
-    private function drawSteps(dc as Dc, dogX as Number, dogY as Number, subtextColor as Number) as Void {
-        var steps = 0;
-        var activityInfo = ActivityMonitor.getInfo();
-        if (activityInfo != null && activityInfo.steps != null) {
-            steps = activityInfo.steps as Number;
+    // Draws up to 6 configurable fields (of 9 candidates — steps, heart
+    // rate, weather, body battery, calories, notifications, floors,
+    // intensity minutes, distance): two columns, each anchored to the
+    // watch's actual round edge (via chordHalfWidthAt) rather than the dog
+    // sprite, growing inward toward center; up to three rows, stacked
+    // together just above the time block with a small padding between them
+    // (rather than spread out) since that's more room than a compact
+    // icon-above-value field actually needs. Because columns are edge-based
+    // and rows are independent of the sprite, a wide value (weather's hi/lo
+    // pair, or steps before it's abbreviated) can visually overlap the dog
+    // — nothing here clips against the sprite. Position is derived from
+    // which fields are enabled (assignFieldPositions), filling bottom-left,
+    // bottom-right, middle-left, middle-right, top-left, top-right in that
+    // order so the face grows upward and stays balanced regardless of
+    // which specific fields are on.
+    private function drawFields(dc as Dc, cx as Number, cy as Number, height as Number, pad as Number, subtextColor as Number) as Void {
+        var enabled = [
+            Properties.getValue("ShowSteps") as Boolean,
+            Properties.getValue("ShowHeartRate") as Boolean,
+            Properties.getValue("ShowWeather") as Boolean,
+            Properties.getValue("ShowBodyBattery") as Boolean,
+            Properties.getValue("ShowCalories") as Boolean,
+            Properties.getValue("ShowNotifications") as Boolean,
+            Properties.getValue("ShowFloors") as Boolean,
+            Properties.getValue("ShowIntensityMinutes") as Boolean,
+            Properties.getValue("ShowDistance") as Boolean,
+        ];
+        var conditions = currentWeatherConditions();
+        var weatherCondition = null;
+        if (conditions != null) {
+            weatherCondition = conditions.condition;
         }
-        var stepsColumnX = dogX / 2;
-        var stepsIconY = (dogY + FRAME_SIZE / 2) - STEPS_ICON_HEIGHT - 2;
-        if (mStepsIcon != null) {
-            dc.drawBitmap(stepsColumnX - (STEPS_ICON_WIDTH / 2), stepsIconY, mStepsIcon as WatchUi.BitmapResource);
+        var weatherIcon = mWeatherIcons[weatherIconKey(weatherCondition)];
+
+        var values = [
+            stepsValue(),
+            heartRateValue(),
+            weatherValueText(conditions),
+            bodyBatteryValue(),
+            caloriesValue(),
+            notificationsValue(),
+            floorsValue(),
+            intensityMinutesValue(),
+            distanceValue(),
+        ];
+        var positions = assignFieldPositions(enabled);
+
+        var textHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_XTINY);
+        var scaledIconHeight = (FIELD_ICON_HEIGHT * FIELD_ICON_SCALE).toNumber();
+        var stackedRowHeight = scaledIconHeight + FIELD_ICON_TEXT_GAP + textHeight;
+
+        var bottomGap = 4; // breathing room from the time block below
+        var rowPadding = 6; // between adjacent field rows
+        var bottomRowY = timeBlockTopY(height, pad) - bottomGap - stackedRowHeight;
+        var middleRowY = bottomRowY - rowPadding - stackedRowHeight;
+        var topRowY = middleRowY - rowPadding - stackedRowHeight;
+
+        // Sampled at each row's vertical center — close enough for a field
+        // a couple dozen pixels tall, without needing per-pixel precision.
+        var bottomHalfWidth = chordHalfWidthAt(bottomRowY + (stackedRowHeight / 2), cx, cy);
+        var middleHalfWidth = chordHalfWidthAt(middleRowY + (stackedRowHeight / 2), cx, cy);
+        var topHalfWidth = chordHalfWidthAt(topRowY + (stackedRowHeight / 2), cx, cy);
+
+        // [edgeX, alignToRightEdge, rowY] per position: 0=bottom-left,
+        // 1=bottom-right, 2=middle-left, 3=middle-right, 4=top-left,
+        // 5=top-right. Left-column fields start at the edge and grow
+        // rightward (alignToRightEdge false); right-column fields end at
+        // the edge and grow leftward (true).
+        var positionCoords = [
+            [cx - bottomHalfWidth + FIELD_EDGE_MARGIN, false, bottomRowY],
+            [cx + bottomHalfWidth - FIELD_EDGE_MARGIN, true, bottomRowY],
+            [cx - middleHalfWidth + FIELD_EDGE_MARGIN, false, middleRowY],
+            [cx + middleHalfWidth - FIELD_EDGE_MARGIN, true, middleRowY],
+            [cx - topHalfWidth + FIELD_EDGE_MARGIN, false, topRowY],
+            [cx + topHalfWidth - FIELD_EDGE_MARGIN, true, topRowY],
+        ];
+
+        for (var i = 0; i < enabled.size(); i += 1) {
+            var positionIndex = positions[i];
+            if (positionIndex != null) {
+                var coords = positionCoords[positionIndex];
+                var icon = mFieldIcons[i];
+                var iconWidth = FIELD_ICON_WIDTHS[i];
+                if (i == FIELD_INDEX_WEATHER) {
+                    icon = weatherIcon[:icon];
+                    iconWidth = weatherIcon[:width];
+                }
+                drawField(dc, coords[0], coords[1], coords[2], icon, iconWidth, values[i], subtextColor);
+            }
+        }
+    }
+
+    // One field: icon above value, stacked tightly (FIELD_ICON_TEXT_GAP).
+    // edgeX is either the shared left edge (alignToRightEdge false, for
+    // left-column fields — icon and value both start at the watch edge) or
+    // the shared right edge (true, for right-column fields — both end at
+    // the edge). Icon and value are NOT centered relative to each other —
+    // each is only as wide as it needs to be, so a narrow icon sits
+    // noticeably off-center under/over a wider value (or vice versa)
+    // instead of the pair reserving room for whichever is wider on both
+    // sides — more compact than centering them would be.
+    private function drawField(dc as Dc, edgeX as Number, alignToRightEdge as Boolean, rowY as Number, icon as Object or Null, iconWidth as Number, valueText as String, subtextColor as Number) as Void {
+        var font = Graphics.FONT_SYSTEM_XTINY;
+        var textWidth = dc.getTextWidthInPixels(valueText, font);
+        var scaledIconWidth = (iconWidth * FIELD_ICON_SCALE).toNumber();
+        var scaledIconHeight = (FIELD_ICON_HEIGHT * FIELD_ICON_SCALE).toNumber();
+
+        var iconX = edgeX;
+        var textX = edgeX;
+        if (alignToRightEdge) {
+            iconX = edgeX - scaledIconWidth;
+            textX = edgeX - textWidth;
+        }
+        var iconY = rowY;
+        var textY = rowY + scaledIconHeight + FIELD_ICON_TEXT_GAP;
+
+        if (icon != null) {
+            dc.drawScaledBitmap(iconX, iconY, scaledIconWidth, scaledIconHeight, icon as WatchUi.BitmapResource);
         }
         dc.setColor(subtextColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(stepsColumnX, stepsIconY + STEPS_ICON_HEIGHT + 2, Graphics.FONT_SYSTEM_XTINY, steps.toString(), Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(textX, textY, font, valueText, Graphics.TEXT_JUSTIFY_LEFT);
+    }
+
+    private function stepsValue() as String {
+        var activityInfo = ActivityMonitor.getInfo();
+        var steps = null;
+        if (activityInfo != null) {
+            steps = activityInfo.steps;
+        }
+        return formatSteps(steps);
+    }
+
+    private function heartRateValue() as String {
+        var history = ActivityMonitor.getHeartRateHistory(1, true);
+        var sample = history.next();
+        var heartRate = null;
+        if (sample != null && sample.heartRate != ActivityMonitor.INVALID_HR_SAMPLE) {
+            heartRate = sample.heartRate;
+        }
+        return formatFieldValue(heartRate, "");
+    }
+
+    private function currentWeatherConditions() as Weather.CurrentConditions or Null {
+        if (!(Toybox has :Weather) || !(Toybox.Weather has :getCurrentConditions)) {
+            return null;
+        }
+        return Weather.getCurrentConditions();
+    }
+
+    private function weatherValueText(conditions as Weather.CurrentConditions or Null) as String {
+        if (conditions == null) {
+            return "--/--";
+        }
+        var useStatute = System.getDeviceSettings().temperatureUnits == System.UNIT_STATUTE;
+        return formatTemperatureRange(conditions.highTemperature, conditions.lowTemperature, useStatute);
+    }
+
+    private function bodyBatteryValue() as String {
+        if (!(Toybox has :SensorHistory) || !(Toybox.SensorHistory has :getBodyBatteryHistory)) {
+            return "--";
+        }
+        var iterator = SensorHistory.getBodyBatteryHistory({});
+        var sample = iterator.next();
+        var level = null;
+        if (sample != null && sample.data != null) {
+            // .data is typed Number or Float — comes back as a Float here,
+            // and Float.toString() prints full decimal precision ("55.000000"),
+            // not the plain "55" a percentage should show.
+            level = sample.data.toNumber();
+        }
+        return formatFieldValue(level, "");
+    }
+
+    private function caloriesValue() as String {
+        var activityInfo = ActivityMonitor.getInfo();
+        var calories = null;
+        if (activityInfo != null) {
+            calories = activityInfo.calories;
+        }
+        return formatFieldValue(calories, "");
+    }
+
+    private function notificationsValue() as String {
+        return formatFieldValue(System.getDeviceSettings().notificationCount, "");
+    }
+
+    private function floorsValue() as String {
+        var activityInfo = ActivityMonitor.getInfo();
+        var floors = null;
+        if (activityInfo != null) {
+            floors = activityInfo.floorsClimbed;
+        }
+        return formatFieldValue(floors, "");
+    }
+
+    private function intensityMinutesValue() as String {
+        var activityInfo = ActivityMonitor.getInfo();
+        var minutes = null;
+        if (activityInfo != null && activityInfo.activeMinutesWeek != null) {
+            minutes = activityInfo.activeMinutesWeek.total;
+        }
+        return formatFieldValue(minutes, "");
+    }
+
+    private function distanceValue() as String {
+        var activityInfo = ActivityMonitor.getInfo();
+        var distance = null;
+        if (activityInfo != null) {
+            distance = activityInfo.distance;
+        }
+        var useStatute = System.getDeviceSettings().distanceUnits == System.UNIT_STATUTE;
+        return formatDistance(distance, useStatute);
     }
 
     // Time (large, prominent) above date (small), bottom center, whole block
     // anchored to the bottom padding.
     private function drawTimeDate(dc as Dc, cx as Number, height as Number, pad as Number, dateColor as Number) as Void {
         var dateHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_XTINY);
-        var timeHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_LARGE);
         var dateY = height - pad - dateHeight;
-        var timeY = dateY - timeHeight;
+        var timeY = timeBlockTopY(height, pad);
 
         var clockTime = System.getClockTime();
         var hours = clockTime.hour;
@@ -338,7 +736,8 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     function onHide() as Void {
         mStandingBitmap = null;
-        mStepsIcon = null;
+        mFieldIcons = null;
+        mWeatherIcons = null;
         mBatteryIcons = null;
         mTricks = null;
     }

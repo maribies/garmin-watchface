@@ -2,5 +2,14 @@
 
     <property id="BackgroundColor" type="number">0xAAAAFF</property>
     <property id="UseMilitaryFormat" type="boolean">true</property>
+    <property id="ShowSteps" type="boolean">false</property>
+    <property id="ShowHeartRate" type="boolean">false</property>
+    <property id="ShowWeather" type="boolean">false</property>
+    <property id="ShowBodyBattery" type="boolean">false</property>
+    <property id="ShowCalories" type="boolean">false</property>
+    <property id="ShowNotifications" type="boolean">false</property>
+    <property id="ShowFloors" type="boolean">false</property>
+    <property id="ShowIntensityMinutes" type="boolean">false</property>
+    <property id="ShowDistance" type="boolean">false</property>
 
 </properties>

@@ -4,6 +4,15 @@
 
     <string id="BackgroundColorTitle">Background Color</string>
     <string id="MilitaryFormatTitle">Military Format for 24 Hour Time</string>
+    <string id="ShowStepsTitle">Show Steps</string>
+    <string id="ShowHeartRateTitle">Show Heart Rate</string>
+    <string id="ShowWeatherTitle">Show Weather</string>
+    <string id="ShowBodyBatteryTitle">Show Body Battery</string>
+    <string id="ShowCaloriesTitle">Show Calories</string>
+    <string id="ShowNotificationsTitle">Show Notifications</string>
+    <string id="ShowFloorsTitle">Show Floors Climbed</string>
+    <string id="ShowIntensityMinutesTitle">Show Intensity Minutes</string>
+    <string id="ShowDistanceTitle">Show Distance</string>
 
     <string id="ColorLightRed">Light Red</string>
     <string id="ColorLightBlue">Light Blue</string>

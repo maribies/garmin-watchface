@@ -18,4 +18,44 @@
         <settingConfig type="boolean" />
     </setting>
 
+    <!-- Up to 6 fields shown at once, out of 9 candidates. Which ones are
+         on determines position (fill order: bottom-left, bottom-right,
+         middle-left, middle-right, top-left, top-right, in that fixed
+         evaluation order below) — no per-slot picker needed. -->
+    <setting propertyKey="@Properties.ShowSteps" title="@Strings.ShowStepsTitle">
+        <settingConfig type="boolean" />
+    </setting>
+
+    <setting propertyKey="@Properties.ShowHeartRate" title="@Strings.ShowHeartRateTitle">
+        <settingConfig type="boolean" />
+    </setting>
+
+    <setting propertyKey="@Properties.ShowWeather" title="@Strings.ShowWeatherTitle">
+        <settingConfig type="boolean" />
+    </setting>
+
+    <setting propertyKey="@Properties.ShowBodyBattery" title="@Strings.ShowBodyBatteryTitle">
+        <settingConfig type="boolean" />
+    </setting>
+
+    <setting propertyKey="@Properties.ShowCalories" title="@Strings.ShowCaloriesTitle">
+        <settingConfig type="boolean" />
+    </setting>
+
+    <setting propertyKey="@Properties.ShowNotifications" title="@Strings.ShowNotificationsTitle">
+        <settingConfig type="boolean" />
+    </setting>
+
+    <setting propertyKey="@Properties.ShowFloors" title="@Strings.ShowFloorsTitle">
+        <settingConfig type="boolean" />
+    </setting>
+
+    <setting propertyKey="@Properties.ShowIntensityMinutes" title="@Strings.ShowIntensityMinutesTitle">
+        <settingConfig type="boolean" />
+    </setting>
+
+    <setting propertyKey="@Properties.ShowDistance" title="@Strings.ShowDistanceTitle">
+        <settingConfig type="boolean" />
+    </setting>
+
 </settings>

@@ -41,6 +41,25 @@ A recipe for creating the pixel art has been documented and is continuously upda
 ## Icons
 UI icons (steps, battery, etc.) are sourced from [Font Awesome Free](https://fontawesome.com/) — icons are CC BY 4.0, fonts are SIL OFL 1.1, code is MIT. All three require attribution. See the "Before publishing" note in [refinement-strategy.md](planning/refinement-strategy.md) for what that means for this app specifically (a compiled `.prg` doesn't carry forward the source file's embedded license comments the way a served web asset would).
 
+# IQ Connect Description
+
+Draft copy for the Connect IQ Store listing description (update before actually publishing — see the "Before publishing" checklist in [refinement-strategy.md](planning/refinement-strategy.md)).
+
+A cute corgi watch face that idles, blinks, and plays random tricks (tail spin, licking the screen, sitting down and standing back up). Background color and data fields are fully customizable via the on-watch Settings menu.
+
+Choose up to 6 of the following stat fields, shown around the dog:
+- **Steps** — today's step count
+- **Heart Rate** — most recent heart rate reading
+- **Weather** — today's forecasted high/low temperature
+- **Body Battery** — current body battery level
+- **Calories** — calories burned today
+- **Notifications** — unread notification count
+- **Floors Climbed** — floors climbed today
+- **Intensity Minutes** — this week's accumulated intensity minutes
+- **Distance** — distance traveled today
+
+Also customizable: background color (6 shades) and 12/24-hour time format.
+
 # Running the project locally
 ## In simulation
 Open the `DogAnimationExperiment` folder directly as the VSCode workspace root (File > Open Folder), not the parent `garmin-experiment` repo. The Monkey C extension resolves the jungle file and manifest paths relative to the workspace root, so opening the parent folder instead causes "Connect IQ project not found" / manifest lookup errors.
