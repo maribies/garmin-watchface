@@ -26,51 +26,44 @@ const STAND_TICK_MS = 120;
 const MIN_TRICK_DELAY_TICKS = 20;
 const MAX_TRICK_DELAY_TICKS = 50;
 
-// Sentinel for "not currently playing a trick." Valid trick states are
-// indices into mTricks (0..mTricks.size()-1), built once bitmaps are loaded.
+// Sentinel for "not currently playing a trick" (valid states are indices
+// into mTricks).
 const STATE_IDLE = -1;
 
 // Icon sizes as registered in drawables.xml (aspect-correct, ~20px tall).
 const BATTERY_ICON_WIDTH = 25;
-const BATTERY_ICON_HEIGHT = 20;
 
-// Configurable fields, in fixed evaluation order: steps, heart rate,
-// weather, body battery, calories, notifications, floors climbed,
-// intensity minutes, distance. Widths match each icon's native scaleX in
-// drawables.xml (all natively scaleY=20 tall) — drawn smaller at runtime
-// per FIELD_ICON_SCALE, see drawField. Index 2 (weather) is a placeholder —
-// its icon is condition-dependent, looked up from mWeatherIcons instead,
-// see drawFields.
-const FIELD_ICON_WIDTHS = [23, 20, 23, 20, 18, 20, 23, 18, 18];
-const FIELD_ICON_HEIGHT = 20;
+// Index into mFieldDefs. Weather's icon/width come from mWeatherIcons
+// instead — see drawFields.
 const FIELD_INDEX_WEATHER = 2;
 
-// Icons are drawn slightly smaller than their native size (via
-// drawScaledBitmap) so they read as a subordinate accent next to the value
-// rather than competing with it for attention.
+const FIELD_ICON_HEIGHT = 20;
+
+// Icons draw smaller than native size so they read as a subordinate accent
+// next to the value.
 const FIELD_ICON_SCALE = 0.8;
 
 // Vertical gap between an icon and its value, stacked tightly.
 const FIELD_ICON_TEXT_GAP = 2;
 
-// Margin kept between a field and the watch's actual round edge (see
-// chordHalfWidthAt) so content doesn't crowd the bezel.
+// Margin from the watch's round edge (see chordHalfWidthAt) so fields
+// don't crowd the bezel.
 const FIELD_EDGE_MARGIN = 8;
 
-// Pure, stateless helpers (formatting, geometry, animation-state math) live
-// in DogAnimationExperimentHelpers.mc — this file is drawing, lifecycle,
-// and data-fetching only.
+// Pure, stateless helpers live in DogAnimationExperimentHelpers.mc.
 
 class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     private var mStandingBitmap = null;
     private var mBatteryIcons as Array or Null = null; // [full, threeQuarters, half, quarter, empty]
 
-    // Configurable-field icons, aligned with FIELD_ICON_WIDTHS' order:
-    // [steps, heart rate, weather, body battery, calories, notifications,
-    // floors, intensity minutes, distance]. Weather's slot is unused (null)
-    // — its icon is condition-dependent, see mWeatherIcons.
-    private var mFieldIcons as Array or Null = null;
+    // The 9 configurable fields, in fixed evaluation order: steps, heart
+    // rate, weather, body battery, calories, notifications, floors climbed,
+    // intensity minutes, distance. Each entry: {:propertyKey, :icon,
+    // :iconWidth, :valueFn}. Weather's :icon/:iconWidth are unused
+    // (condition-dependent, see mWeatherIcons) and it has no :valueFn
+    // (special-cased in drawFields since its value needs CurrentConditions).
+    private var mFieldDefs as Array or Null = null;
 
     // Weather icon variants, keyed by weatherIconKey()'s result. Each entry
     // is {:icon, :width} since the icons aren't all the same width.
@@ -95,16 +88,16 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     function onLayout(dc as Dc) as Void {
         mStandingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStanding);
-        mFieldIcons = [
-            WatchUi.loadResource(Rez.Drawables.IconShoePrints),
-            WatchUi.loadResource(Rez.Drawables.IconHeart),
-            null,
-            WatchUi.loadResource(Rez.Drawables.IconGauge),
-            WatchUi.loadResource(Rez.Drawables.IconFire),
-            WatchUi.loadResource(Rez.Drawables.IconMessage),
-            WatchUi.loadResource(Rez.Drawables.IconStairs),
-            WatchUi.loadResource(Rez.Drawables.IconStopwatch),
-            WatchUi.loadResource(Rez.Drawables.IconPersonRunning),
+        mFieldDefs = [
+            { :propertyKey => "ShowSteps", :icon => WatchUi.loadResource(Rez.Drawables.IconShoePrints), :iconWidth => 23, :valueFn => method(:stepsValue) },
+            { :propertyKey => "ShowHeartRate", :icon => WatchUi.loadResource(Rez.Drawables.IconHeart), :iconWidth => 20, :valueFn => method(:heartRateValue) },
+            { :propertyKey => "ShowWeather", :icon => null, :iconWidth => 0, :valueFn => null },
+            { :propertyKey => "ShowBodyBattery", :icon => WatchUi.loadResource(Rez.Drawables.IconGauge), :iconWidth => 20, :valueFn => method(:bodyBatteryValue) },
+            { :propertyKey => "ShowCalories", :icon => WatchUi.loadResource(Rez.Drawables.IconFire), :iconWidth => 18, :valueFn => method(:caloriesValue) },
+            { :propertyKey => "ShowNotifications", :icon => WatchUi.loadResource(Rez.Drawables.IconMessage), :iconWidth => 20, :valueFn => method(:notificationsValue) },
+            { :propertyKey => "ShowFloors", :icon => WatchUi.loadResource(Rez.Drawables.IconStairs), :iconWidth => 23, :valueFn => method(:floorsValue) },
+            { :propertyKey => "ShowIntensityMinutes", :icon => WatchUi.loadResource(Rez.Drawables.IconStopwatch), :iconWidth => 18, :valueFn => method(:intensityMinutesValue) },
+            { :propertyKey => "ShowDistance", :icon => WatchUi.loadResource(Rez.Drawables.IconPersonRunning), :iconWidth => 18, :valueFn => method(:distanceValue) },
         ];
         mWeatherIcons = {
             :sun => { :icon => WatchUi.loadResource(Rez.Drawables.IconSun), :width => 23 },
@@ -214,9 +207,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         dc.setColor(backgroundColor, backgroundColor);
         dc.clear();
 
-        // Subtext (steps count, date) is derived from the background so it
-        // reads as a matching tint of whichever color is picked, instead of
-        // a fixed gray that can clash. Time stays plain black.
+        // Subtext tints to match the background instead of a fixed gray.
         var subtextColor = darkerTint(backgroundColor);
 
         // Battery — icon, top center.
@@ -226,11 +217,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         // slightly to leave breathing room for the time/date block below).
         drawDog(dc, cx, cy);
 
-        // Configurable fields — up to 4, positioned relative to the watch's
-        // actual round edge rather than the dog sprite. Position is derived
-        // from which are enabled, not individually chosen: the first
-        // enabled field takes left-upper, the second right-upper, the
-        // third left-lower, the fourth right-lower.
+        // Configurable fields — up to 6 of 9 candidates. See drawFields.
         drawFields(dc, cx, cy, height, pad, subtextColor);
 
         // Time + date — bottom center, time larger/prominent, date small
@@ -270,51 +257,17 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         }
     }
 
-    // Draws up to 6 configurable fields (of 9 candidates — steps, heart
-    // rate, weather, body battery, calories, notifications, floors,
-    // intensity minutes, distance): two columns, each anchored to the
-    // watch's actual round edge (via chordHalfWidthAt) rather than the dog
-    // sprite, growing inward toward center; up to three rows, stacked
-    // together just above the time block with a small padding between them
-    // (rather than spread out) since that's more room than a compact
-    // icon-above-value field actually needs. Because columns are edge-based
-    // and rows are independent of the sprite, a wide value (weather's hi/lo
-    // pair, or steps before it's abbreviated) can visually overlap the dog
-    // — nothing here clips against the sprite. Position is derived from
-    // which fields are enabled (assignFieldPositions), filling bottom-left,
-    // bottom-right, middle-left, middle-right, top-left, top-right in that
-    // order so the face grows upward and stays balanced regardless of
-    // which specific fields are on.
+    // Draws up to 6 of the 9 configurable fields: two columns anchored to
+    // the watch's round edge (chordHalfWidthAt), growing inward; up to
+    // three rows stacked above the time block. Position comes from
+    // assignFieldPositions, filling bottom-left/right, middle-left/right,
+    // top-left/right in that order. Nothing clips against the dog sprite,
+    // so a wide value can overlap it.
     private function drawFields(dc as Dc, cx as Number, cy as Number, height as Number, pad as Number, subtextColor as Number) as Void {
-        var enabled = [
-            Properties.getValue("ShowSteps") as Boolean,
-            Properties.getValue("ShowHeartRate") as Boolean,
-            Properties.getValue("ShowWeather") as Boolean,
-            Properties.getValue("ShowBodyBattery") as Boolean,
-            Properties.getValue("ShowCalories") as Boolean,
-            Properties.getValue("ShowNotifications") as Boolean,
-            Properties.getValue("ShowFloors") as Boolean,
-            Properties.getValue("ShowIntensityMinutes") as Boolean,
-            Properties.getValue("ShowDistance") as Boolean,
-        ];
-        var conditions = currentWeatherConditions();
-        var weatherCondition = null;
-        if (conditions != null) {
-            weatherCondition = conditions.condition;
+        var enabled = new [mFieldDefs.size()];
+        for (var i = 0; i < mFieldDefs.size(); i += 1) {
+            enabled[i] = Properties.getValue(mFieldDefs[i][:propertyKey]) as Boolean;
         }
-        var weatherIcon = mWeatherIcons[weatherIconKey(weatherCondition)];
-
-        var values = [
-            stepsValue(),
-            heartRateValue(),
-            weatherValueText(conditions),
-            bodyBatteryValue(),
-            caloriesValue(),
-            notificationsValue(),
-            floorsValue(),
-            intensityMinutesValue(),
-            distanceValue(),
-        ];
         var positions = assignFieldPositions(enabled);
 
         var textHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_XTINY);
@@ -327,50 +280,51 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var middleRowY = bottomRowY - rowPadding - stackedRowHeight;
         var topRowY = middleRowY - rowPadding - stackedRowHeight;
 
-        // Sampled at each row's vertical center — close enough for a field
-        // a couple dozen pixels tall, without needing per-pixel precision.
+        // Sampled at each row's vertical center.
         var bottomHalfWidth = chordHalfWidthAt(bottomRowY + (stackedRowHeight / 2), cx, cy);
         var middleHalfWidth = chordHalfWidthAt(middleRowY + (stackedRowHeight / 2), cx, cy);
         var topHalfWidth = chordHalfWidthAt(topRowY + (stackedRowHeight / 2), cx, cy);
 
-        // [edgeX, alignToRightEdge, rowY] per position: 0=bottom-left,
-        // 1=bottom-right, 2=middle-left, 3=middle-right, 4=top-left,
-        // 5=top-right. Left-column fields start at the edge and grow
-        // rightward (alignToRightEdge false); right-column fields end at
-        // the edge and grow leftward (true).
+        // Index order: bottom-left, bottom-right, middle-left, middle-right,
+        // top-left, top-right. alignToRightEdge false = grows rightward
+        // from the edge; true = grows leftward.
         var positionCoords = [
-            [cx - bottomHalfWidth + FIELD_EDGE_MARGIN, false, bottomRowY],
-            [cx + bottomHalfWidth - FIELD_EDGE_MARGIN, true, bottomRowY],
-            [cx - middleHalfWidth + FIELD_EDGE_MARGIN, false, middleRowY],
-            [cx + middleHalfWidth - FIELD_EDGE_MARGIN, true, middleRowY],
-            [cx - topHalfWidth + FIELD_EDGE_MARGIN, false, topRowY],
-            [cx + topHalfWidth - FIELD_EDGE_MARGIN, true, topRowY],
+            { :edgeX => cx - bottomHalfWidth + FIELD_EDGE_MARGIN, :alignToRightEdge => false, :rowY => bottomRowY },
+            { :edgeX => cx + bottomHalfWidth - FIELD_EDGE_MARGIN, :alignToRightEdge => true, :rowY => bottomRowY },
+            { :edgeX => cx - middleHalfWidth + FIELD_EDGE_MARGIN, :alignToRightEdge => false, :rowY => middleRowY },
+            { :edgeX => cx + middleHalfWidth - FIELD_EDGE_MARGIN, :alignToRightEdge => true, :rowY => middleRowY },
+            { :edgeX => cx - topHalfWidth + FIELD_EDGE_MARGIN, :alignToRightEdge => false, :rowY => topRowY },
+            { :edgeX => cx + topHalfWidth - FIELD_EDGE_MARGIN, :alignToRightEdge => true, :rowY => topRowY },
         ];
 
         for (var i = 0; i < enabled.size(); i += 1) {
             var positionIndex = positions[i];
             if (positionIndex != null) {
                 var coords = positionCoords[positionIndex];
-                var icon = mFieldIcons[i];
-                var iconWidth = FIELD_ICON_WIDTHS[i];
+                var def = mFieldDefs[i];
+                var icon = def[:icon];
+                var iconWidth = def[:iconWidth];
+                var valueText;
                 if (i == FIELD_INDEX_WEATHER) {
+                    var conditions = currentWeatherConditions();
+                    var weatherCondition = null;
+                    if (conditions != null) {
+                        weatherCondition = conditions.condition;
+                    }
+                    var weatherIcon = mWeatherIcons[weatherIconKey(weatherCondition)];
                     icon = weatherIcon[:icon];
                     iconWidth = weatherIcon[:width];
+                    valueText = weatherValueText(conditions);
+                } else {
+                    valueText = def[:valueFn].invoke() as String;
                 }
-                drawField(dc, coords[0], coords[1], coords[2], icon, iconWidth, values[i], subtextColor);
+                drawField(dc, coords[:edgeX], coords[:alignToRightEdge], coords[:rowY], icon, iconWidth, valueText, subtextColor);
             }
         }
     }
 
-    // One field: icon above value, stacked tightly (FIELD_ICON_TEXT_GAP).
-    // edgeX is either the shared left edge (alignToRightEdge false, for
-    // left-column fields — icon and value both start at the watch edge) or
-    // the shared right edge (true, for right-column fields — both end at
-    // the edge). Icon and value are NOT centered relative to each other —
-    // each is only as wide as it needs to be, so a narrow icon sits
-    // noticeably off-center under/over a wider value (or vice versa)
-    // instead of the pair reserving room for whichever is wider on both
-    // sides — more compact than centering them would be.
+    // One field: icon above value, stacked tightly, both anchored to edgeX
+    // (icon and value are each their own width, not centered on each other).
     private function drawField(dc as Dc, edgeX as Number, alignToRightEdge as Boolean, rowY as Number, icon as Object or Null, iconWidth as Number, valueText as String, subtextColor as Number) as Void {
         var font = Graphics.FONT_SYSTEM_XTINY;
         var textWidth = dc.getTextWidthInPixels(valueText, font);
@@ -393,7 +347,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         dc.drawText(textX, textY, font, valueText, Graphics.TEXT_JUSTIFY_LEFT);
     }
 
-    private function stepsValue() as String {
+    function stepsValue() as String {
         var activityInfo = ActivityMonitor.getInfo();
         var steps = null;
         if (activityInfo != null) {
@@ -402,7 +356,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         return formatSteps(steps);
     }
 
-    private function heartRateValue() as String {
+    function heartRateValue() as String {
         var history = ActivityMonitor.getHeartRateHistory(1, true);
         var sample = history.next();
         var heartRate = null;
@@ -427,7 +381,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         return formatTemperatureRange(conditions.highTemperature, conditions.lowTemperature, useStatute);
     }
 
-    private function bodyBatteryValue() as String {
+    function bodyBatteryValue() as String {
         if (!(Toybox has :SensorHistory) || !(Toybox.SensorHistory has :getBodyBatteryHistory)) {
             return "--";
         }
@@ -435,15 +389,14 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var sample = iterator.next();
         var level = null;
         if (sample != null && sample.data != null) {
-            // .data is typed Number or Float — comes back as a Float here,
-            // and Float.toString() prints full decimal precision ("55.000000"),
-            // not the plain "55" a percentage should show.
+            // .data comes back as a Float; toString() on it prints
+            // "55.000000" instead of "55" if not cast first.
             level = sample.data.toNumber();
         }
         return formatFieldValue(level, "");
     }
 
-    private function caloriesValue() as String {
+    function caloriesValue() as String {
         var activityInfo = ActivityMonitor.getInfo();
         var calories = null;
         if (activityInfo != null) {
@@ -452,11 +405,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         return formatFieldValue(calories, "");
     }
 
-    private function notificationsValue() as String {
+    function notificationsValue() as String {
         return formatFieldValue(System.getDeviceSettings().notificationCount, "");
     }
 
-    private function floorsValue() as String {
+    function floorsValue() as String {
         var activityInfo = ActivityMonitor.getInfo();
         var floors = null;
         if (activityInfo != null) {
@@ -465,7 +418,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         return formatFieldValue(floors, "");
     }
 
-    private function intensityMinutesValue() as String {
+    function intensityMinutesValue() as String {
         var activityInfo = ActivityMonitor.getInfo();
         var minutes = null;
         if (activityInfo != null && activityInfo.activeMinutesWeek != null) {
@@ -474,7 +427,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         return formatFieldValue(minutes, "");
     }
 
-    private function distanceValue() as String {
+    function distanceValue() as String {
         var activityInfo = ActivityMonitor.getInfo();
         var distance = null;
         if (activityInfo != null) {
@@ -513,7 +466,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     function onHide() as Void {
         mStandingBitmap = null;
-        mFieldIcons = null;
+        mFieldDefs = null;
         mWeatherIcons = null;
         mBatteryIcons = null;
         mTricks = null;

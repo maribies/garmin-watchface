@@ -3,11 +3,7 @@ import Toybox.Lang;
 import Toybox.Math;
 import Toybox.Weather;
 
-// Pure, stateless helpers pulled out of DogAnimationExperimentView.mc so
-// they're testable without touching private view state, and so the view
-// file itself stays focused on drawing/lifecycle/data-fetching. Monkey C
-// compiles every file under source/ into one namespace (no imports needed
-// between them), so this split is purely organizational.
+// Pure, stateless helpers for DogAnimationExperimentView.mc.
 
 // Of the 9 candidate fields, at most this many are shown at once (3 rows x
 // 2 columns) — see assignFieldPositions.
@@ -43,10 +39,9 @@ function pickBatteryIconIndex(percent as Number) as Number {
     return 4;
 }
 
-// True if every R/G/B channel of a 24-bit color is one of {0x00, 0x55, 0xAA,
-// 0xFF} — the 4 levels ARGB2222 displays (fenix7s/fenix7spro) actually
-// render. A channel outside that set gets silently shifted to the nearest
-// one at render time, which is what turned our sprite gray yellow in Phase 1.
+// True if every R/G/B channel is one of {0x00, 0x55, 0xAA, 0xFF} — the 4
+// levels ARGB2222 displays actually render; anything else gets silently
+// shifted at render time.
 function isArgb2222Safe(color as Number) as Boolean {
     var safeLevels = [0x00, 0x55, 0xAA, 0xFF];
     var r = (color >> 16) & 0xFF;
@@ -66,10 +61,8 @@ function stepDownChannel(channel as Number) as Number {
     return 0x00;
 }
 
-// Darkens a color by stepping each R/G/B channel down one level in the
-// ARGB2222-safe ladder, staying safe by construction. Used to derive
-// secondary text color from the selected background — a tint of the same
-// hue rather than a fixed gray that clashes with whichever color is picked.
+// Darkens a color one step per channel, staying ARGB2222-safe by
+// construction. Used to derive text color from the background.
 function darkerTint(color as Number) as Number {
     var r = stepDownChannel((color >> 16) & 0xFF);
     var g = stepDownChannel((color >> 8) & 0xFF);
@@ -86,12 +79,8 @@ function formatFieldValue(value as Number or Null, suffix as String) as String {
     return value.toString() + suffix;
 }
 
-// Formats a step count: raw below 100,000 (its narrow column can't fit 6
-// digits), abbreviated to the nearest thousand at or above it, prefixed
-// with "+" since every bucket is a floor, not an exact count (100000-100999
-// -> "+100k", 101000-101999 -> "+101k", 200000-200999 -> "+200k") — the "+"
-// applies uniformly rather than just to the first bucket, since "101k" is
-// just as much a rounded-down approximation as "100k" is.
+// Formats a step count: raw below 100,000, else abbreviated to the nearest
+// thousand with a "+" (100000-100999 -> "+100k", every bucket is a floor).
 function formatSteps(steps as Number or Null) as String {
     if (steps == null) {
         return "--";
@@ -130,11 +119,9 @@ function timeBlockTopY(height as Number, pad as Number) as Number {
     return height - pad - dateHeight - timeHeight;
 }
 
-// Half-width of the round screen's visible chord at a given y (distance
-// from vertical/horizontal center — every currently supported device is a
-// round, square-pixel-buffer display, so radius == cx == cy). Lets fields
-// be positioned relative to the watch's actual edge rather than the dog
-// sprite. Returns 0 once y is at or past the very top/bottom of the circle.
+// Half-width of the round screen's visible chord at a given y. Assumes a
+// round, square-pixel-buffer display (radius == cx == cy), true of every
+// currently supported device. Returns 0 past the top/bottom of the circle.
 function chordHalfWidthAt(y as Number, cx as Number, cy as Number) as Number {
     var dy = y - cy;
     if (dy < 0) {
@@ -146,15 +133,11 @@ function chordHalfWidthAt(y as Number, cx as Number, cy as Number) as Number {
     return Math.sqrt((cx * cx) - (dy * dy)).toNumber();
 }
 
-// Maps which fields are enabled (fixed evaluation order — see
-// FIELD_ICON_WIDTHS' comment) to position indices 0..5 in fill order:
-// bottom-left, bottom-right, middle-left, middle-right, top-left,
-// top-right — the face grows upward as more fields are turned on, staying
-// balanced regardless of which specific fields are enabled. Returns an
-// Array the same length as `enabled`; each entry is a position index, or
-// null if that field is off (or all MAX_VISIBLE_FIELDS slots are already
-// filled by earlier fields in evaluation order).
-function assignFieldPositions(enabled as Array<Boolean>) as Array {
+// Maps enabled fields to position indices 0..5 (bottom-left, bottom-right,
+// middle-left, middle-right, top-left, top-right), densely packed in fixed
+// evaluation order — not sticky: toggling one field can shift others'
+// positions. Null for a disabled field or once all slots are filled.
+function assignFieldPositions(enabled as Array<Boolean>) as Array<Number or Null> {
     var positions = new [enabled.size()];
     var nextPosition = 0;
     for (var i = 0; i < enabled.size(); i += 1) {
@@ -185,48 +168,52 @@ function formatDistance(centimeters as Number or Null, useStatute as Boolean) as
     return whole.toString() + "." + frac.toString();
 }
 
-// Maps a Weather.Condition value to which weather icon family to show:
-// clear-family -> sun, partly cloudy -> cloud+sun, cloudy family -> cloud,
-// rain family -> cloud+rain, thunderstorm family -> cloud+bolt, snow/wintry
-// family -> snowflake. Anything else (windy, fog, hazy, mist, dust,
-// tornado, etc.) or no reading at all (condition == null) falls back to a
-// generic thermometer rather than trying to cover every one of the ~35
-// Weather.Condition values with a dedicated icon.
+// Weather.Condition -> icon family. Not exhaustive (~26 of ~35 conditions
+// covered) — anything missing falls back to :thermometer in weatherIconKey.
+const WEATHER_ICON_KEYS_BY_CONDITION = {
+    Weather.CONDITION_CLEAR => :sun,
+    Weather.CONDITION_PARTLY_CLEAR => :sun,
+    Weather.CONDITION_MOSTLY_CLEAR => :sun,
+    Weather.CONDITION_PARTLY_CLOUDY => :cloudSun,
+    Weather.CONDITION_MOSTLY_CLOUDY => :cloud,
+    Weather.CONDITION_CLOUDY => :cloud,
+    Weather.CONDITION_RAIN => :cloudRain,
+    Weather.CONDITION_LIGHT_RAIN => :cloudRain,
+    Weather.CONDITION_HEAVY_RAIN => :cloudRain,
+    Weather.CONDITION_SCATTERED_SHOWERS => :cloudRain,
+    Weather.CONDITION_LIGHT_SHOWERS => :cloudRain,
+    Weather.CONDITION_SHOWERS => :cloudRain,
+    Weather.CONDITION_HEAVY_SHOWERS => :cloudRain,
+    Weather.CONDITION_CHANCE_OF_SHOWERS => :cloudRain,
+    Weather.CONDITION_DRIZZLE => :cloudRain,
+    Weather.CONDITION_UNKNOWN_PRECIPITATION => :cloudRain,
+    Weather.CONDITION_THUNDERSTORMS => :cloudBolt,
+    Weather.CONDITION_SCATTERED_THUNDERSTORMS => :cloudBolt,
+    Weather.CONDITION_CHANCE_OF_THUNDERSTORMS => :cloudBolt,
+    Weather.CONDITION_SNOW => :snowflake,
+    Weather.CONDITION_LIGHT_SNOW => :snowflake,
+    Weather.CONDITION_HEAVY_SNOW => :snowflake,
+    Weather.CONDITION_WINTRY_MIX => :snowflake,
+    Weather.CONDITION_LIGHT_RAIN_SNOW => :snowflake,
+    Weather.CONDITION_HEAVY_RAIN_SNOW => :snowflake,
+    Weather.CONDITION_RAIN_SNOW => :snowflake,
+    Weather.CONDITION_HAIL => :snowflake,
+};
+
 function weatherIconKey(condition as Number or Null) as Symbol {
-    if (condition == Weather.CONDITION_CLEAR || condition == Weather.CONDITION_PARTLY_CLEAR || condition == Weather.CONDITION_MOSTLY_CLEAR) {
-        return :sun;
+    if (condition == null) {
+        return :thermometer;
     }
-    if (condition == Weather.CONDITION_PARTLY_CLOUDY) {
-        return :cloudSun;
+    var key = WEATHER_ICON_KEYS_BY_CONDITION[condition];
+    if (key == null) {
+        return :thermometer;
     }
-    if (condition == Weather.CONDITION_MOSTLY_CLOUDY || condition == Weather.CONDITION_CLOUDY) {
-        return :cloud;
-    }
-    if (condition == Weather.CONDITION_RAIN || condition == Weather.CONDITION_LIGHT_RAIN || condition == Weather.CONDITION_HEAVY_RAIN
-        || condition == Weather.CONDITION_SCATTERED_SHOWERS || condition == Weather.CONDITION_LIGHT_SHOWERS
-        || condition == Weather.CONDITION_SHOWERS || condition == Weather.CONDITION_HEAVY_SHOWERS
-        || condition == Weather.CONDITION_CHANCE_OF_SHOWERS || condition == Weather.CONDITION_DRIZZLE
-        || condition == Weather.CONDITION_UNKNOWN_PRECIPITATION) {
-        return :cloudRain;
-    }
-    if (condition == Weather.CONDITION_THUNDERSTORMS || condition == Weather.CONDITION_SCATTERED_THUNDERSTORMS
-        || condition == Weather.CONDITION_CHANCE_OF_THUNDERSTORMS) {
-        return :cloudBolt;
-    }
-    if (condition == Weather.CONDITION_SNOW || condition == Weather.CONDITION_LIGHT_SNOW || condition == Weather.CONDITION_HEAVY_SNOW
-        || condition == Weather.CONDITION_WINTRY_MIX || condition == Weather.CONDITION_LIGHT_RAIN_SNOW
-        || condition == Weather.CONDITION_HEAVY_RAIN_SNOW || condition == Weather.CONDITION_RAIN_SNOW
-        || condition == Weather.CONDITION_HAIL) {
-        return :snowflake;
-    }
-    return :thermometer;
+    return key;
 }
 
 // One tick of progress through a trick's clip sequence, as [nextClipIndex,
-// nextClipFrame]. clips only needs each entry's :frameCount for this. If
-// nextClipIndex >= clips.size(), the trick is complete — the caller is
-// responsible for calling enterIdle() (timer reconfig + re-rolled trick
-// delay) rather than applying the returned frame directly in that case.
+// nextClipFrame]. If nextClipIndex >= clips.size(), the trick is complete
+// and the caller should call enterIdle() instead of using the frame.
 function nextClipProgress(clipIndex as Number, clipFrame as Number, clips as Array<Dictionary>) as Array<Number> {
     var next = clipFrame + 1;
     if (next >= clips[clipIndex][:frameCount]) {
