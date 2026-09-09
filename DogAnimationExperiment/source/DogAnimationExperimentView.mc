@@ -63,11 +63,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     // :iconWidth, :valueFn}. Weather's :icon/:iconWidth are unused
     // (condition-dependent, see mWeatherIcons) and it has no :valueFn
     // (special-cased in drawFields since its value needs CurrentConditions).
-    private var mFieldDefs as Array or Null = null;
+    private var mFieldDefs as Array<Dictionary> or Null = null;
 
     // Weather icon variants, keyed by weatherIconKey()'s result. Each entry
     // is {:icon, :width} since the icons aren't all the same width.
-    private var mWeatherIcons as Dictionary or Null = null;
+    private var mWeatherIcons as Dictionary<Symbol, Dictionary> or Null = null;
 
     // Each trick is an Array of clips ({:bitmap, :startFrame, :frameCount,
     // :tickMs, :repeat}), played in order. Adding a trick means adding one
