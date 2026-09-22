@@ -451,3 +451,25 @@ function testClipProgressWalksMultiClipTrick(logger as Test.Logger) as Boolean {
 
     return ok;
 }
+
+(:test)
+function testTrickResourcesSurviveHideShowCycle(logger as Test.Logger) as Boolean {
+    // Regression test for a real on-device crash: onHide() nulls mTricks
+    // (and the other resource caches) but onShow() didn't reload them, so
+    // any background/foreground cycle short of full sleep -- a notification,
+    // a widget glance -- crashed the watch face on its next trick or field
+    // draw. mTricks is used here since it's reachable without a Dc.
+    var view = new DogAnimationExperimentView();
+    var ok = true;
+    view.onShow(); // initial launch
+    view.onHide(); // background: frees resources
+    view.onShow(); // foreground again: must reload them
+    try {
+        view.startRandomTrick();
+    } catch (ex) {
+        logger.debug("startRandomTrick threw after a hide/show cycle: " + ex.getErrorMessage());
+        ok = false;
+    }
+    view.onHide(); // stop the timer startRandomTrick() started
+    return ok;
+}

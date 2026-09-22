@@ -97,6 +97,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     function onLayout(dc as Dc) as Void {
+    }
+
+    // Populated here, not onLayout() (which only runs once) -- onShow()/onHide()
+    // fire on every foreground/background transition, per View's documented contract.
+    function onShow() as Void {
         mStandingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStanding);
         mFieldDefs = [
             { :propertyKey => "ShowSteps", :icon => WatchUi.loadResource(Rez.Drawables.IconShoePrints), :iconWidth => 23, :valueFn => method(:stepsValue) },
@@ -146,9 +151,8 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
                 { :bitmap => tailSpinBitmap, :startFrame => 0, :frameCount => 9, :tickMs => 130, :repeat => true },
             ],
         ];
-    }
 
-    function onShow() as Void {
+        enterIdle();
     }
 
     // Idle (standing, blinking) -> random trick -> idle ...
@@ -483,6 +487,9 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     function onHide() as Void {
+        if (mAnimTimer != null) {
+            mAnimTimer.stop();
+        }
         mStandingBitmap = null;
         mFieldDefs = null;
         mWeatherIcons = null;
