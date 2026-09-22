@@ -55,6 +55,8 @@ Surfaced by the in-depth review mentioned above. Both items block Phase A/B unti
 
 **Phase A is complete.** All three scoped items (icons, background colors, configurable data fields) are done and verified live; the second dog breed was never in scope for this phase. Clear to start Phase B.
 
+**Post-launch fix:** a real on-device crash (decoded from the watch's own `GARMIN/APPS/LOGS/CIQ_LOG.BAK`, via the SDK's `debug.xml` pc-to-line map — see "Framework lifecycle contract" below) reverted the watch face to a fallback after some background/foreground cycles. Root cause: resource caches (`mBatteryIcons`, `mFieldDefs`, `mWeatherIcons`, `mStandingBitmap`, `mTricks`) were populated once in `onLayout()` and freed in `onHide()`, but never reloaded in `onShow()` — backwards from `View`'s own documented contract (`onShow()`: "Resources should be loaded"; `onHide()`: "Resources should be freed"). Any hide/show cycle short of full sleep (a notification, a widget glance) left those fields `null` until the next crash. The animation timer had the same gap — stopped only on `onEnterSleep()`, not `onHide()`, so it kept firing into the now-null `mTricks` even while backgrounded. Fixed by moving resource population into `onShow()` and stopping/restarting `mAnimTimer` symmetrically with `onHide()`/`onShow()`. This pattern traces all the way back to Garmin's own SDK-generated `onHide()` boilerplate comment ("freeing resources from memory") — every field added since just extended that block without anyone reloading it on the show side.
+
 ---
 
 ## Phase B — New animated behaviors
@@ -79,6 +81,8 @@ Assets already present (frame counts inferred from sheet width ÷ 120px, same as
 ---
 
 ## Testing, as we go
+
+**Framework lifecycle contract.** Add this as an explicit review step: any override of a method whose name and calling convention are dictated by the platform (`onShow`, `onHide`, `onLayout`, `onEnterSleep`, `onExitSleep`, etc. — not our own helpers) gets checked against that method's actual doc comment before being approved, not just judged on whether the code "looks reasonable." The SDK ships this doc text locally in `bin/api.debug.xml` (each `<functionEntry>`'s `<documentation>` CDATA block) — no need to guess or rely on memory of the API. The `onShow()`/`onHide()` load/free bug above is exactly the failure mode this would have caught: every prior review (Java-engineer pass, DevOps pass) read our code in isolation and reasoned about it as self-consistent, without ever pulling the framework's own contract for the lifecycle methods it touched.
 
 Two kinds of verification, and neither substitutes for the other — this bit us twice already (the `drawBitmap2` cropping bug and the sit/stand sequencing bug were each invisible to the other kind of check):
 
