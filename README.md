@@ -45,7 +45,30 @@ UI icons (steps, battery, etc.) are sourced from [Font Awesome Free](https://fon
 
 Draft copy for the Connect IQ Store listing description (update before actually publishing — see the "Before publishing" checklist in [refinement-strategy.md](planning/refinement-strategy.md)).
 
-A cute corgi watch face that idles, blinks, and plays random tricks (tail spin, licking the screen, sitting down and standing back up). Background color and data fields are fully customizable via the on-watch Settings menu.
+Needs:
+- title (max 50 chars)
+   - Pixel Dog Animation
+- description (max 4000 chars)
+   - see below
+- What's new (optional - max 4000 chars)
+- hero image (optional - The image (JPG, GIF or PNG) has to be 1440x720 pixels large and can have a maximum size of 2048 KB.)
+   - saved in designs
+- Category and Subcategory selection
+   - fun
+- Privacy policy, if app collects user data (boolean)
+- ANT+ Profiles (boolean)
+- Regional Limits (boolean)
+- Cover Image & Icons (Image must be a JPG, GIF or PNG less than 300 KB.). Icons (boolean - only be 128 x 128 pixels, device 64 and 24 color)
+- Screen images (Image must be a JPG, GIF or PNG less than 150 KB)
+- Preview video (optional- YouTube and Vimeo only)
+- Additional information - email (public) and source code url
+- Review notification (boolean)
+- App migration (boolean)
+- Monetization (boolean)
+- Companion App (optional)
+- Additional hardware requirements (link)
+
+A cute pixel dog watch face that idles, blinks, and plays random tricks (tail spin, licking the screen, sitting down and standing back up). Background color and data fields are fully customizable via the on-watch settings menu. 
 
 Choose up to 6 of the following stat fields, shown around the dog:
 - **Steps** — today's step count
@@ -59,6 +82,12 @@ Choose up to 6 of the following stat fields, shown around the dog:
 - **Distance** — distance traveled today
 
 Also customizable: background color (6 shades) and 12/24-hour time format.
+
+Currently just a corgi-like animation, hopefully other breeds and trick animations soon.
+
+Developed with the help of Claude code.
+
+Icons: Font Awesome Free 7.3.1 (fontawesome.com), © Fonticons, Inc., CC BY 4.0 (creativecommons.org/licenses/by/4.0) — converted to bitmap and recolored.
 
 # Running the project locally
 ## In simulation
@@ -92,6 +121,16 @@ In your file manager, go to the directory selected in step 4
 Copy the generated PRG files to your device's GARMIN/APPS directory
 
 Apparently the PRG files are not visible, and the only way to verify is by checking if the new watchface appears in the options, otherwise it can just silently fail.
+
+The success of side loading appears to be mixed and the alternative is upload the App for beta in th IQ format on [Garmin's developer website](https://apps.garmin.com/en-US/developer/upload).
+** A Note from Garmin: Only you will be able to download and test the app. If you want to publish your app after testing, you will need to upload it again and use another appID in the app’s manifest.xml. **
+
+### Beta App
+Manifest AppID: b4605c40f90b48e7a9b6432924bece6e
+https://apps.garmin.com/apps/a3e115df-0f42-4b7b-8aa9-12abb13b5406
+Use another appID in the app’s manifest.xml to publish.
+
+From the Beta page, under Manage Your App, click download. This will pop up to confirm the device to install the watchface and then open Garmin Express to finish the installation. 
 
 # Running Tests
 
