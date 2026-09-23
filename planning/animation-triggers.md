@@ -17,10 +17,3 @@ Reference for manual testing: every animation state, what fires it, and its curr
 | Resume from sleep | Device exits low-power mode (`onExitSleep`) | — | Calls `enterIdle()`, restarting the idle timer fresh (new random trick delay). |
 
 **Also worth knowing while testing:** any hide/show cycle (backgrounding via a notification, widget glance, menu — not just sleep) also calls `enterIdle()` via `onShow()`, so the idle countdown resets whenever the watch face comes back to the foreground, not just after sleep.
-
-## Planned (Phase B — not yet implemented)
-
-| Animation | Trigger (candidate) | Notes |
-|---|---|---|
-| Move-alert | `moveBarLevel` reaches `MOVE_BAR_LEVEL_MAX` | Lower priority. Reuses an existing animation (tail spin or foot-taps) rather than a dedicated sheet. |
-| Heart-rate-triggered lick | A recent `getHeartRateHistory()` sample notably exceeds `UserProfile.restingHeartRate` | Reuses the existing lick animation. Implement-vs-defer decision deliberately deferred to right before building it (see `refinement-strategy.md`). |
