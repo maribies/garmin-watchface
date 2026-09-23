@@ -23,12 +23,7 @@ const IDLE_TICK_MS = 400;
 const MIN_TRICK_DELAY_TICKS = 10;
 const MAX_TRICK_DELAY_TICKS = 25;
 
-// Only the first RANDOM_TRICK_POOL_SIZE entries of mTricks are drawn from
-// randomly; conditional tricks (e.g. SPLOOT_FRONT_TRICK_INDEX) are appended
-// after and reached only by their own trigger.
-const RANDOM_TRICK_POOL_SIZE = 3;
-const SPLOOT_FRONT_TRICK_INDEX = 3;
-// Two tiers, same animation replayed as a second warning -- tentative, tune after testing live.
+// Two tiers, same animation replayed as a second warning.
 const LOW_BATTERY_THRESHOLD_PERCENT = 20;
 const CRITICAL_BATTERY_THRESHOLD_PERCENT = 10;
 
@@ -76,11 +71,10 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mWeatherIcons as Dictionary<Symbol, Dictionary> or Null = null;
 
     // Each trick is an Array of clips ({:bitmap, :startFrame, :frameCount,
-    // :tickMs, :repeat}), played in order. Adding a trick to the random pool
-    // means adding one entry within the first RANDOM_TRICK_POOL_SIZE here —
-    // nothing else needs touching. Conditional tricks go after that, indexed
-    // by their own named constant (see SPLOOT_FRONT_TRICK_INDEX).
+    // :tickMs, :repeat}), played in order.
     private var mTricks as Array<Array<Dictionary> > or Null = null;
+    private var mRandomTrickPoolSize = 0;
+    private var mSplootFrontTrickIndex = 0;
 
     private var mAnimTimer = null;
     private var mState = STATE_IDLE;
@@ -142,26 +136,36 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         ];
         var lickingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiLicking);
         var tailSpinBitmap = WatchUi.loadResource(Rez.Drawables.CorgiTailSpin);
+        var footTapsBitmap = WatchUi.loadResource(Rez.Drawables.CorgiFootTaps);
         var splootRearBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSplootRear);
         var splootFrontBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSplootFront);
 
-        mTricks = [
-            // Random pool (RANDOM_TRICK_POOL_SIZE entries) -- lick, tail spin, sploot rear:
+        var randomTricks = [
             [
                 { :bitmap => lickingBitmap, :startFrame => 0, :frameCount => 11, :tickMs => 150, :repeat => true },
             ],
             [
                 { :bitmap => tailSpinBitmap, :startFrame => 0, :frameCount => 9, :tickMs => 130, :repeat => true },
             ],
-            // Sploot (rear view): 10 frames at 150ms -- pacing not yet confirmed live
+            // Sploot (rear view): 10 frames at 150ms
             [
                 { :bitmap => splootRearBitmap, :startFrame => 0, :frameCount => 10, :tickMs => 150, :repeat => true },
             ],
-            // SPLOOT_FRONT_TRICK_INDEX -- conditional (low battery), not in the random pool.
+            // Foot taps: 5 frames at 130ms
+            [
+                { :bitmap => footTapsBitmap, :startFrame => 0, :frameCount => 5, :tickMs => 130, :repeat => true },
+            ],
+        ];
+        var conditionalTricks = [
+            // Sploot (front view): 8 frames at 150ms
             [
                 { :bitmap => splootFrontBitmap, :startFrame => 0, :frameCount => 8, :tickMs => 150, :repeat => true },
             ],
         ];
+        mRandomTrickPoolSize = randomTricks.size();
+        mSplootFrontTrickIndex = randomTricks.size();
+        mTricks = randomTricks;
+        mTricks.addAll(conditionalTricks);
 
         mLowBatteryTrickShown = false;
         mCriticalBatteryTrickShown = false;
@@ -173,13 +177,12 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         if (mState == STATE_IDLE) {
             var battery = System.getSystemStats().battery.toNumber();
             if (!mCriticalBatteryTrickShown && isLowBattery(battery, CRITICAL_BATTERY_THRESHOLD_PERCENT)) {
-                // Also marks the 20% tier consumed, so it can't fire right after this one.
                 mLowBatteryTrickShown = true;
                 mCriticalBatteryTrickShown = true;
-                startTrick(SPLOOT_FRONT_TRICK_INDEX);
+                startTrick(mSplootFrontTrickIndex);
             } else if (!mLowBatteryTrickShown && isLowBattery(battery, LOW_BATTERY_THRESHOLD_PERCENT)) {
                 mLowBatteryTrickShown = true;
-                startTrick(SPLOOT_FRONT_TRICK_INDEX);
+                startTrick(mSplootFrontTrickIndex);
             } else {
                 mOrderIndex = advanceOrderIndex(mOrderIndex);
                 mTicksUntilTrick -= 1;
@@ -206,7 +209,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     function startRandomTrick() as Void {
-        startTrick(pickTrickIndex(Math.rand(), RANDOM_TRICK_POOL_SIZE));
+        startTrick(pickTrickIndex(Math.rand(), mRandomTrickPoolSize));
+    }
+
+    function randomTrickPoolSize() as Number {
+        return mRandomTrickPoolSize;
     }
 
     function startTrick(index as Number) as Void {

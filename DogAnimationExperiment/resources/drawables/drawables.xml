@@ -3,6 +3,7 @@
     <bitmap id="CorgiStanding" filename="corgi/corgi-standing-sheet.png" dithering="none" />
     <bitmap id="CorgiLicking" filename="corgi/corgi-licking-sheet.png" dithering="none" />
     <bitmap id="CorgiTailSpin" filename="corgi/corgi-tail-spin-sheet.png" dithering="none" />
+    <bitmap id="CorgiFootTaps" filename="corgi/corgi-foot-taps-sheet.png" dithering="none" />
     <bitmap id="CorgiSplootRear" filename="corgi/corgi-sploot-rear-sheet.png" dithering="none" />
     <bitmap id="CorgiSplootFront" filename="corgi/corgi-sploot-front-sheet.png" dithering="none" />
 

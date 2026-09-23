@@ -335,13 +335,13 @@ function testRestFrameIsFirstInOrder(logger as Test.Logger) as Boolean {
 
 (:test)
 function testTrickSelectionCanPickAllOutcomes(logger as Test.Logger) as Boolean {
-    // Rules out a selection-bias bug (e.g. Math.rand() % trickCount always
-    // landing on the same branch) hiding a trick behind the others every
-    // time. trickCount here must match mTricks.size() in the view — update
-    // if a trick is added or removed.
-    var trickCount = 3;
+    var view = new DogAnimationExperimentView();
+    view.onShow();
+    var trickCount = view.randomTrickPoolSize();
+    view.onHide();
+
     var seen = {};
-    for (var i = 0; i < 90; i += 1) {
+    for (var i = 0; i < 30 * trickCount; i += 1) {
         seen[pickTrickIndex(Math.rand(), trickCount)] = true;
     }
     logger.debug("distinct outcomes seen=" + seen.size() + " expected=" + trickCount);
@@ -374,6 +374,7 @@ function testAllDrawablesLoad(logger as Test.Logger) as Boolean {
     ok = checkDrawableLoads(logger, "CorgiSplootRear", Rez.Drawables.CorgiSplootRear) && ok;
     ok = checkDrawableLoads(logger, "CorgiSplootFront", Rez.Drawables.CorgiSplootFront) && ok;
     ok = checkDrawableLoads(logger, "CorgiTailSpin", Rez.Drawables.CorgiTailSpin) && ok;
+    ok = checkDrawableLoads(logger, "CorgiFootTaps", Rez.Drawables.CorgiFootTaps) && ok;
     ok = checkDrawableLoads(logger, "IconShoePrints", Rez.Drawables.IconShoePrints) && ok;
     ok = checkDrawableLoads(logger, "IconHeart", Rez.Drawables.IconHeart) && ok;
     ok = checkDrawableLoads(logger, "IconSun", Rez.Drawables.IconSun) && ok;
