@@ -28,7 +28,9 @@ const MAX_TRICK_DELAY_TICKS = 25;
 // after and reached only by their own trigger.
 const RANDOM_TRICK_POOL_SIZE = 3;
 const SPLOOT_FRONT_TRICK_INDEX = 3;
-const LOW_BATTERY_THRESHOLD_PERCENT = 20; // tentative -- tune after testing live
+// Two tiers, same animation replayed as a second warning -- tentative, tune after testing live.
+const LOW_BATTERY_THRESHOLD_PERCENT = 20;
+const CRITICAL_BATTERY_THRESHOLD_PERCENT = 10;
 
 // Sentinel for "not currently playing a trick" (valid states are indices
 // into mTricks).
@@ -86,7 +88,9 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mClipIndex = 0; // trick only: which clip within mTricks[mState]
     private var mClipFrame = 0; // trick only: 0-based frame progress within the current clip
     private var mTicksUntilTrick = MIN_TRICK_DELAY_TICKS;
-    private var mLowBatteryTrickShown = false; // fires once per onShow(), not on every low-battery tick
+    // Each fires once per onShow(), not on every low-battery tick.
+    private var mLowBatteryTrickShown = false;
+    private var mCriticalBatteryTrickShown = false;
 
     // Cached formatted date string, recomputed only when the hour changes
     // (see drawTimeDate).
@@ -160,13 +164,20 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         ];
 
         mLowBatteryTrickShown = false;
+        mCriticalBatteryTrickShown = false;
         enterIdle();
     }
 
     // Idle (standing, blinking) -> random trick -> idle ...
     function onAnimTimer() as Void {
         if (mState == STATE_IDLE) {
-            if (!mLowBatteryTrickShown && isLowBattery(System.getSystemStats().battery.toNumber(), LOW_BATTERY_THRESHOLD_PERCENT)) {
+            var battery = System.getSystemStats().battery.toNumber();
+            if (!mCriticalBatteryTrickShown && isLowBattery(battery, CRITICAL_BATTERY_THRESHOLD_PERCENT)) {
+                // Also marks the 20% tier consumed, so it can't fire right after this one.
+                mLowBatteryTrickShown = true;
+                mCriticalBatteryTrickShown = true;
+                startTrick(SPLOOT_FRONT_TRICK_INDEX);
+            } else if (!mLowBatteryTrickShown && isLowBattery(battery, LOW_BATTERY_THRESHOLD_PERCENT)) {
                 mLowBatteryTrickShown = true;
                 startTrick(SPLOOT_FRONT_TRICK_INDEX);
             } else {
