@@ -11,6 +11,7 @@ Reference for manual testing: every animation state, what fires it, and its curr
 | — Lick | (one of the above) | 11 frames @ 150ms ≈ 1.65s | |
 | — Tail spin | (one of the above) | 9 frames @ 130ms ≈ 1.17s | |
 | — Sploot (rear view) | (one of the above) | 10 frames @ 150ms ≈ 1.5s | Replaced sit-down/stand-up in the pool. Pacing not yet confirmed live in the simulator. |
+| Sploot (front view) | Battery ≤ `LOW_BATTERY_THRESHOLD_PERCENT` (20%, tentative), checked once per idle tick | 8 frames @ 150ms ≈ 1.2s | Only fires from idle, not mid-trick. Not part of the random pool — reached directly via `SPLOOT_FRONT_TRICK_INDEX`. Fires once per `onShow()` (`mLowBatteryTrickShown`), not once per low-battery *tick* — won't repeat until the next hide/show cycle even if battery stays low. Easiest trigger to test live: set battery % directly in the simulator. |
 | Sleep (rest pose, frozen) | Device enters low-power/always-on display mode (`onEnterSleep`) | N/A — static | Stops the animation timer; resets to `STATE_IDLE` at the rest frame. |
 | Resume from sleep | Device exits low-power mode (`onExitSleep`) | — | Calls `enterIdle()`, restarting the idle timer fresh (new random trick delay). |
 
@@ -21,6 +22,5 @@ Reference for manual testing: every animation state, what fires it, and its curr
 | Animation | Trigger (candidate) | Notes |
 |---|---|---|
 | Feet tappies | Added to the random trick pool, same mechanism as existing tricks | Sheet on disk: `corgi-foot-taps-sheet.png`, 5 frames. |
-| Sploot (front view) | Low battery, activity goal reached (`Info.steps` vs `.stepGoal`), or near-bedtime (`UserProfile.sleepTime`) — which condition(s) to wire first still needs deciding | Sheet on disk: `corgi-sploot-front-sheet.png`, 8 frames. Not part of the random trick pool — a standalone conditional trigger, a new mechanism the codebase doesn't have yet. The rear-view sheet is already in the random pool (see above), so this is front-only. |
 | Move-alert | `moveBarLevel` reaches `MOVE_BAR_LEVEL_MAX` | Lower priority. Reuses an existing/new animation (tail spin, or foot-taps once built) rather than a dedicated sheet. |
 | Heart-rate-triggered lick | A recent `getHeartRateHistory()` sample notably exceeds `UserProfile.restingHeartRate` | Reuses the existing lick animation. Implement-vs-defer decision deliberately deferred to right before building it (see `refinement-strategy.md`). |
