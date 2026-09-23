@@ -1,10 +1,9 @@
 <drawables xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
     <bitmap id="LauncherIcon" filename="launcher_icon.svg" dithering="none" />
-    <bitmap id="CorgiSitToStand" filename="corgi/corgi-sit-to-stand-sheet.png" dithering="none" />
     <bitmap id="CorgiStanding" filename="corgi/corgi-standing-sheet.png" dithering="none" />
-    <bitmap id="CorgiStandToSit" filename="corgi/corgi-stand-to-sit-sheet.png" dithering="none" />
     <bitmap id="CorgiLicking" filename="corgi/corgi-licking-sheet.png" dithering="none" />
     <bitmap id="CorgiTailSpin" filename="corgi/corgi-tail-spin-sheet.png" dithering="none" />
+    <bitmap id="CorgiSplootRear" filename="corgi/corgi-sploot-rear-sheet.png" dithering="none" />
 
     <!-- Icons: Font Awesome Free (CC BY 4.0) — see README.md "Icons" section and
          planning/refinement-strategy.md "Before publishing" for the attribution

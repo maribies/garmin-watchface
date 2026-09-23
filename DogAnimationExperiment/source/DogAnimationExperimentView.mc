@@ -19,12 +19,9 @@ const FRAME_SIZE = 120;
 const FRAME_ORDER = [0, 1, 0, 2];
 const IDLE_TICK_MS = 400;
 
-// Shared by the sit-down and stand-up clips below (the compound sit/stand trick).
-const STAND_TICK_MS = 120;
-
-// Random trick trigger window, counted in idle ticks (8-20s at IDLE_TICK_MS).
-const MIN_TRICK_DELAY_TICKS = 20;
-const MAX_TRICK_DELAY_TICKS = 50;
+// Random trick trigger window, counted in idle ticks (4-10s at IDLE_TICK_MS).
+const MIN_TRICK_DELAY_TICKS = 10;
+const MAX_TRICK_DELAY_TICKS = 25;
 
 // Sentinel for "not currently playing a trick" (valid states are indices
 // into mTricks).
@@ -131,24 +128,21 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             WatchUi.loadResource(Rez.Drawables.IconBatteryEmpty),
         ];
         var lickingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiLicking);
-        var sitToStandBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSitToStand);
-        var standToSitBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStandToSit);
         var tailSpinBitmap = WatchUi.loadResource(Rez.Drawables.CorgiTailSpin);
+        var splootRearBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSplootRear);
 
         mTricks = [
             // Lick: 11 frames at 150ms
             [
                 { :bitmap => lickingBitmap, :startFrame => 0, :frameCount => 11, :tickMs => 150, :repeat => true },
             ],
-            // Sit down (5 frames) -> hold seated (1 frame, 1s) -> stand back up (5 frames)
-            [
-                { :bitmap => standToSitBitmap, :startFrame => 0, :frameCount => 5, :tickMs => STAND_TICK_MS, :repeat => true },
-                { :bitmap => standToSitBitmap, :startFrame => 4, :frameCount => 1, :tickMs => 1000, :repeat => false },
-                { :bitmap => sitToStandBitmap, :startFrame => 0, :frameCount => 5, :tickMs => STAND_TICK_MS, :repeat => true },
-            ],
             // Tail spin: 9 frames at 130ms
             [
                 { :bitmap => tailSpinBitmap, :startFrame => 0, :frameCount => 9, :tickMs => 130, :repeat => true },
+            ],
+            // Sploot (rear view): 10 frames at 150ms -- pacing not yet confirmed live
+            [
+                { :bitmap => splootRearBitmap, :startFrame => 0, :frameCount => 10, :tickMs => 150, :repeat => true },
             ],
         ];
 

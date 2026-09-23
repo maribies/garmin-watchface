@@ -351,8 +351,7 @@ function testAllDrawablesLoad(logger as Test.Logger) as Boolean {
     var ok = true;
     ok = checkDrawableLoads(logger, "CorgiStanding", Rez.Drawables.CorgiStanding) && ok;
     ok = checkDrawableLoads(logger, "CorgiLicking", Rez.Drawables.CorgiLicking) && ok;
-    ok = checkDrawableLoads(logger, "CorgiSitToStand", Rez.Drawables.CorgiSitToStand) && ok;
-    ok = checkDrawableLoads(logger, "CorgiStandToSit", Rez.Drawables.CorgiStandToSit) && ok;
+    ok = checkDrawableLoads(logger, "CorgiSplootRear", Rez.Drawables.CorgiSplootRear) && ok;
     ok = checkDrawableLoads(logger, "CorgiTailSpin", Rez.Drawables.CorgiTailSpin) && ok;
     ok = checkDrawableLoads(logger, "IconShoePrints", Rez.Drawables.IconShoePrints) && ok;
     ok = checkDrawableLoads(logger, "IconHeart", Rez.Drawables.IconHeart) && ok;
