@@ -324,6 +324,25 @@ function testIsMoveBarMaxAtThreshold(logger as Test.Logger) as Boolean {
 }
 
 (:test)
+function testIsHighStressAtThreshold(logger as Test.Logger) as Boolean {
+    var cases = [
+        [75, 76, false], [76, 76, true], [100, 76, true], [0, 76, false],
+    ];
+    var ok = true;
+    for (var i = 0; i < cases.size(); i += 1) {
+        var level = cases[i][0];
+        var threshold = cases[i][1];
+        var expected = cases[i][2];
+        var got = isHighStress(level, threshold);
+        if (got != expected) {
+            logger.debug("level=" + level + " threshold=" + threshold + " expected=" + expected + " got=" + got);
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+(:test)
 function testFrameOrderAdvances(logger as Test.Logger) as Boolean {
     // FRAME_ORDER = [0,1,0,2]; starting at index 0 (rest), 5 ticks should
     // walk one full cycle and one step into the next: 1,0,2,0,1.

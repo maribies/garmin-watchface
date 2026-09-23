@@ -75,9 +75,11 @@ Assets already present (frame counts inferred from sheet width ÷ 120px, same as
 1. **Feet tappies.** **Done.** See `animation-triggers.md` for the implementation.
 2. **Laying down (sploot).** **Done** — both rear (random pool) and front (conditional, low battery) views. See `animation-triggers.md` for the implementation. Activity-goal-reached, step-goal-reached and near-bedtime are candidates for additional conditional triggers.
 3. **Move-alert trigger.** **Done.** Reuses tail spin. See `animation-triggers.md` for the implementation.
-4. **Heart-rate-triggered lick.** Reuses the existing lick animation; fires when a recent `getHeartRateHistory()` sample notably exceeds `UserProfile.restingHeartRate`. **Decide implement-vs-defer right before building this item, not now:** heart-rate patterns may not be reliably discernible for a good trigger, and the extra `getHeartRateHistory()` checking has a battery cost that might not be worth it for something this uncertain — weigh that against Phase A's field display already needing HR reads (see `boilerplate-context.md`), which lowers the marginal cost of also using it as a trigger. If the decision is to skip it, nothing is lost: lick already fires on its own via the existing random trick pool regardless. Also consider a stress level threshold.
+4. **High-stress-triggered lick.** **Done.** Implemented against stress level instead of heart-rate-vs-resting (decided as more directly meaningful than an HR comparison). Reuses the existing lick animation. See `animation-triggers.md` for the implementation.
 
 **Verification:** Each new trigger confirmed live — both that the condition actually fires (may need temporarily-relaxed thresholds the way we shortened the trick-trigger window in Phase 3, to test without waiting for a real low-battery/bedtime moment) and that the animation renders correctly via the `setClip`+`drawBitmap` approach already proven for the existing sheets.
+
+**Phase B is complete.** All four items done. Activity-goal-reached, step-goal-reached, and near-bedtime (noted under item 2) remain unscoped candidates for further conditional triggers, not blockers.
 
 ---
 

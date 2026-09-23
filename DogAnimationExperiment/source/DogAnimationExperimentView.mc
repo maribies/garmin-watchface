@@ -27,6 +27,8 @@ const MAX_TRICK_DELAY_TICKS = 25;
 const LOW_BATTERY_THRESHOLD_PERCENT = 20;
 const CRITICAL_BATTERY_THRESHOLD_PERCENT = 10;
 
+const HIGH_STRESS_THRESHOLD = 76;
+
 // Sentinel for "not currently playing a trick" (valid states are keys
 // into mTricks).
 const STATE_IDLE = null;
@@ -86,6 +88,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mLowBatteryTrickShown = false;
     private var mCriticalBatteryTrickShown = false;
     private var mMoveAlertTrickShown = false;
+    private var mHighStressTrickShown = false;
 
     // Cached formatted date string, recomputed only when the hour changes
     // (see drawTimeDate).
@@ -168,6 +171,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         mLowBatteryTrickShown = false;
         mCriticalBatteryTrickShown = false;
         mMoveAlertTrickShown = false;
+        mHighStressTrickShown = false;
         enterIdle();
     }
 
@@ -175,6 +179,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     function onAnimTimer() as Void {
         if (mState == STATE_IDLE) {
             var battery = System.getSystemStats().battery.toNumber();
+            var stressLevel = currentStressLevel();
             if (!mCriticalBatteryTrickShown && isLowBattery(battery, CRITICAL_BATTERY_THRESHOLD_PERCENT)) {
                 mLowBatteryTrickShown = true;
                 mCriticalBatteryTrickShown = true;
@@ -185,6 +190,9 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             } else if (!mMoveAlertTrickShown && isMoveBarMax(ActivityMonitor.getInfo().moveBarLevel, ActivityMonitor.MOVE_BAR_LEVEL_MAX)) {
                 mMoveAlertTrickShown = true;
                 startTrick(:moveAlert);
+            } else if (!mHighStressTrickShown && stressLevel != null && isHighStress(stressLevel, HIGH_STRESS_THRESHOLD)) {
+                mHighStressTrickShown = true;
+                startTrick(:lick);
             } else {
                 mOrderIndex = advanceOrderIndex(mOrderIndex);
                 mTicksUntilTrick -= 1;
@@ -452,6 +460,18 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             level = sample.data.toNumber();
         }
         return formatFieldValue(level, "");
+    }
+
+    private function currentStressLevel() as Number or Null {
+        if (!(Toybox has :SensorHistory) || !(Toybox.SensorHistory has :getStressHistory)) {
+            return null;
+        }
+        var iterator = SensorHistory.getStressHistory({});
+        var sample = iterator.next();
+        if (sample != null && sample.data != null) {
+            return sample.data.toNumber();
+        }
+        return null;
     }
 
     function caloriesValue() as String {
