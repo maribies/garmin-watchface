@@ -13,6 +13,7 @@ Reference for manual testing: every animation state, what fires it, and its curr
 | — Sploot (rear view) | (one of the above) | 10 frames @ 150ms ≈ 1.5s | Replaced sit-down/stand-up in the pool. |
 | — Foot taps | (one of the above) | 5 frames @ 130ms ≈ 0.65s | |
 | Sploot (front view) | Battery ≤ `LOW_BATTERY_THRESHOLD_PERCENT` (20%) or `CRITICAL_BATTERY_THRESHOLD_PERCENT` (10%), checked once per idle tick | 8 frames @ 150ms ≈ 1.2s | Only fires from idle, not mid-trick. Not part of the random pool — reached via `mSplootFrontTrickIndex`, a fixed offset past the random-pool entries in `mTricks`. Same animation plays for both tiers: once at 20%, again as a second warning at 10%. Each tier fires once per `onShow()`, not once per tick — won't repeat until the next hide/show cycle even if battery stays low. Crossing straight past 20% to ≤10% in one tick plays it once, not twice (the 10% check also consumes the 20% tier). Verified live: fires at 20%, fires again at 10%. |
+| Move-alert | `moveBarLevel` ≥ `MOVE_BAR_LEVEL_MAX` (5), checked once per idle tick | 9 frames @ 130ms ≈ 1.17s | Reuses tail spin's bitmap/clip. Same once-per-`onShow()` pattern as the battery tiers. |
 | Sleep (rest pose, frozen) | Device enters low-power/always-on display mode (`onEnterSleep`) | N/A — static | Stops the animation timer; resets to `STATE_IDLE` at the rest frame. |
 | Resume from sleep | Device exits low-power mode (`onExitSleep`) | — | Calls `enterIdle()`, restarting the idle timer fresh (new random trick delay). |
 

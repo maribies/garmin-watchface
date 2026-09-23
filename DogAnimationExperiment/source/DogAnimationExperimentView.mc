@@ -75,6 +75,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mTricks as Array<Array<Dictionary> > or Null = null;
     private var mRandomTrickPoolSize = 0;
     private var mSplootFrontTrickIndex = 0;
+    private var mMoveAlertTrickIndex = 0;
 
     private var mAnimTimer = null;
     private var mState = STATE_IDLE;
@@ -85,6 +86,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     // Each fires once per onShow(), not on every low-battery tick.
     private var mLowBatteryTrickShown = false;
     private var mCriticalBatteryTrickShown = false;
+    private var mMoveAlertTrickShown = false;
 
     // Cached formatted date string, recomputed only when the hour changes
     // (see drawTimeDate).
@@ -156,19 +158,26 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
                 { :bitmap => footTapsBitmap, :startFrame => 0, :frameCount => 5, :tickMs => 130, :repeat => true },
             ],
         ];
-        var conditionalTricks = [
-            // Sploot (front view): 8 frames at 150ms
-            [
-                { :bitmap => splootFrontBitmap, :startFrame => 0, :frameCount => 8, :tickMs => 150, :repeat => true },
-            ],
-        ];
         mRandomTrickPoolSize = randomTricks.size();
-        mSplootFrontTrickIndex = randomTricks.size();
+
+        var conditionalTricks = [];
+        mSplootFrontTrickIndex = mRandomTrickPoolSize + conditionalTricks.size();
+        // Sploot (front view): 8 frames at 150ms
+        conditionalTricks.add([
+            { :bitmap => splootFrontBitmap, :startFrame => 0, :frameCount => 8, :tickMs => 150, :repeat => true },
+        ]);
+        mMoveAlertTrickIndex = mRandomTrickPoolSize + conditionalTricks.size();
+        // Move alert: reuses tail spin
+        conditionalTricks.add([
+            { :bitmap => tailSpinBitmap, :startFrame => 0, :frameCount => 9, :tickMs => 130, :repeat => true },
+        ]);
+
         mTricks = randomTricks;
         mTricks.addAll(conditionalTricks);
 
         mLowBatteryTrickShown = false;
         mCriticalBatteryTrickShown = false;
+        mMoveAlertTrickShown = false;
         enterIdle();
     }
 
@@ -183,6 +192,9 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             } else if (!mLowBatteryTrickShown && isLowBattery(battery, LOW_BATTERY_THRESHOLD_PERCENT)) {
                 mLowBatteryTrickShown = true;
                 startTrick(mSplootFrontTrickIndex);
+            } else if (!mMoveAlertTrickShown && isMoveBarMax(ActivityMonitor.getInfo().moveBarLevel, ActivityMonitor.MOVE_BAR_LEVEL_MAX)) {
+                mMoveAlertTrickShown = true;
+                startTrick(mMoveAlertTrickIndex);
             } else {
                 mOrderIndex = advanceOrderIndex(mOrderIndex);
                 mTicksUntilTrick -= 1;

@@ -43,6 +43,10 @@ function isLowBattery(percent as Number, thresholdPercent as Number) as Boolean 
     return percent <= thresholdPercent;
 }
 
+function isMoveBarMax(level as Number, maxLevel as Number) as Boolean {
+    return level >= maxLevel;
+}
+
 // True if every R/G/B channel is one of {0x00, 0x55, 0xAA, 0xFF} — the 4
 // levels ARGB2222 displays actually render; anything else gets silently
 // shifted at render time.
