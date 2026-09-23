@@ -122,6 +122,13 @@ Copy the generated PRG files to your device's GARMIN/APPS directory
 
 Apparently the PRG files are not visible, and the only way to verify is by checking if the new watchface appears in the options, otherwise it can just silently fail.
 
+## Build for release (.iq)
+The `.iq` format needed for beta testing or Store submission via [Garmin's developer upload page](https://apps.garmin.com/en-US/developer/upload) is a different artifact from the per-device `.prg` files above — it bundles every manifest-declared device into one release-optimized package. This is a different VS Code command than "Build for Device" used above — use "Monkey C: Export Project" from the command palette, or via CLI (`-e` is the export/package flag), from the repo root:
+```
+monkeyc -e -r -w -f DogAnimationExperiment/monkey.jungle -o DogAnimationExperiment/bin/DogAnimationExperiment.iq -y keys/developer_key
+```
+`-e` exports the Store-ready package instead of a single device's `.prg`; `-r` builds in release/optimized mode; `-w` shows compiler warnings. Output lands at `DogAnimationExperiment/bin/DogAnimationExperiment.iq`, ready to upload.
+
 The success of side loading appears to be mixed and the alternative is upload the App for beta in th IQ format on [Garmin's developer website](https://apps.garmin.com/en-US/developer/upload).
 ** A Note from Garmin: Only you will be able to download and test the app. If you want to publish your app after testing, you will need to upload it again and use another appID in the app’s manifest.xml. **
 
