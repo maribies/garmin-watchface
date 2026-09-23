@@ -39,6 +39,10 @@ function pickBatteryIconIndex(percent as Number) as Number {
     return 4;
 }
 
+function isLowBattery(percent as Number, thresholdPercent as Number) as Boolean {
+    return percent <= thresholdPercent;
+}
+
 // True if every R/G/B channel is one of {0x00, 0x55, 0xAA, 0xFF} — the 4
 // levels ARGB2222 displays actually render; anything else gets silently
 // shifted at render time.

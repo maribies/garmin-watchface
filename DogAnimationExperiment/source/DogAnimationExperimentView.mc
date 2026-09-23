@@ -23,6 +23,13 @@ const IDLE_TICK_MS = 400;
 const MIN_TRICK_DELAY_TICKS = 10;
 const MAX_TRICK_DELAY_TICKS = 25;
 
+// Only the first RANDOM_TRICK_POOL_SIZE entries of mTricks are drawn from
+// randomly; conditional tricks (e.g. SPLOOT_FRONT_TRICK_INDEX) are appended
+// after and reached only by their own trigger.
+const RANDOM_TRICK_POOL_SIZE = 3;
+const SPLOOT_FRONT_TRICK_INDEX = 3;
+const LOW_BATTERY_THRESHOLD_PERCENT = 20; // tentative -- tune after testing live
+
 // Sentinel for "not currently playing a trick" (valid states are indices
 // into mTricks).
 const STATE_IDLE = -1;
@@ -67,9 +74,10 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mWeatherIcons as Dictionary<Symbol, Dictionary> or Null = null;
 
     // Each trick is an Array of clips ({:bitmap, :startFrame, :frameCount,
-    // :tickMs, :repeat}), played in order. Adding a trick means adding one
-    // entry here — nothing else needs touching to wire it into the random
-    // pool, the timer, or drawing.
+    // :tickMs, :repeat}), played in order. Adding a trick to the random pool
+    // means adding one entry within the first RANDOM_TRICK_POOL_SIZE here —
+    // nothing else needs touching. Conditional tricks go after that, indexed
+    // by their own named constant (see SPLOOT_FRONT_TRICK_INDEX).
     private var mTricks as Array<Array<Dictionary> > or Null = null;
 
     private var mAnimTimer = null;
@@ -78,6 +86,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mClipIndex = 0; // trick only: which clip within mTricks[mState]
     private var mClipFrame = 0; // trick only: 0-based frame progress within the current clip
     private var mTicksUntilTrick = MIN_TRICK_DELAY_TICKS;
+    private var mLowBatteryTrickShown = false; // fires once per onShow(), not on every low-battery tick
 
     // Cached formatted date string, recomputed only when the hour changes
     // (see drawTimeDate).
@@ -130,13 +139,13 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var lickingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiLicking);
         var tailSpinBitmap = WatchUi.loadResource(Rez.Drawables.CorgiTailSpin);
         var splootRearBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSplootRear);
+        var splootFrontBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSplootFront);
 
         mTricks = [
-            // Lick: 11 frames at 150ms
+            // Random pool (RANDOM_TRICK_POOL_SIZE entries) -- lick, tail spin, sploot rear:
             [
                 { :bitmap => lickingBitmap, :startFrame => 0, :frameCount => 11, :tickMs => 150, :repeat => true },
             ],
-            // Tail spin: 9 frames at 130ms
             [
                 { :bitmap => tailSpinBitmap, :startFrame => 0, :frameCount => 9, :tickMs => 130, :repeat => true },
             ],
@@ -144,18 +153,28 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             [
                 { :bitmap => splootRearBitmap, :startFrame => 0, :frameCount => 10, :tickMs => 150, :repeat => true },
             ],
+            // SPLOOT_FRONT_TRICK_INDEX -- conditional (low battery), not in the random pool.
+            [
+                { :bitmap => splootFrontBitmap, :startFrame => 0, :frameCount => 8, :tickMs => 150, :repeat => true },
+            ],
         ];
 
+        mLowBatteryTrickShown = false;
         enterIdle();
     }
 
     // Idle (standing, blinking) -> random trick -> idle ...
     function onAnimTimer() as Void {
         if (mState == STATE_IDLE) {
-            mOrderIndex = advanceOrderIndex(mOrderIndex);
-            mTicksUntilTrick -= 1;
-            if (mTicksUntilTrick <= 0) {
-                startRandomTrick();
+            if (!mLowBatteryTrickShown && isLowBattery(System.getSystemStats().battery.toNumber(), LOW_BATTERY_THRESHOLD_PERCENT)) {
+                mLowBatteryTrickShown = true;
+                startTrick(SPLOOT_FRONT_TRICK_INDEX);
+            } else {
+                mOrderIndex = advanceOrderIndex(mOrderIndex);
+                mTicksUntilTrick -= 1;
+                if (mTicksUntilTrick <= 0) {
+                    startRandomTrick();
+                }
             }
         } else {
             var clips = mTricks[mState];
@@ -176,7 +195,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     function startRandomTrick() as Void {
-        mState = pickTrickIndex(Math.rand(), mTricks.size());
+        startTrick(pickTrickIndex(Math.rand(), RANDOM_TRICK_POOL_SIZE));
+    }
+
+    function startTrick(index as Number) as Void {
+        mState = index;
         mClipIndex = 0;
         mClipFrame = 0;
         configureTimerForClip(mTricks[mState][0]);

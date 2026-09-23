@@ -285,6 +285,26 @@ function testBatteryIconIndexAtBoundaries(logger as Test.Logger) as Boolean {
 }
 
 (:test)
+function testIsLowBatteryAtThreshold(logger as Test.Logger) as Boolean {
+    // Threshold itself counts as low (<=), not just strictly below it.
+    var cases = [
+        [21, 20, false], [20, 20, true], [19, 20, true], [0, 20, true],
+    ];
+    var ok = true;
+    for (var i = 0; i < cases.size(); i += 1) {
+        var percent = cases[i][0];
+        var threshold = cases[i][1];
+        var expected = cases[i][2];
+        var got = isLowBattery(percent, threshold);
+        if (got != expected) {
+            logger.debug("percent=" + percent + " threshold=" + threshold + " expected=" + expected + " got=" + got);
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+(:test)
 function testFrameOrderAdvances(logger as Test.Logger) as Boolean {
     // FRAME_ORDER = [0,1,0,2]; starting at index 0 (rest), 5 ticks should
     // walk one full cycle and one step into the next: 1,0,2,0,1.
@@ -352,6 +372,7 @@ function testAllDrawablesLoad(logger as Test.Logger) as Boolean {
     ok = checkDrawableLoads(logger, "CorgiStanding", Rez.Drawables.CorgiStanding) && ok;
     ok = checkDrawableLoads(logger, "CorgiLicking", Rez.Drawables.CorgiLicking) && ok;
     ok = checkDrawableLoads(logger, "CorgiSplootRear", Rez.Drawables.CorgiSplootRear) && ok;
+    ok = checkDrawableLoads(logger, "CorgiSplootFront", Rez.Drawables.CorgiSplootFront) && ok;
     ok = checkDrawableLoads(logger, "CorgiTailSpin", Rez.Drawables.CorgiTailSpin) && ok;
     ok = checkDrawableLoads(logger, "IconShoePrints", Rez.Drawables.IconShoePrints) && ok;
     ok = checkDrawableLoads(logger, "IconHeart", Rez.Drawables.IconHeart) && ok;
