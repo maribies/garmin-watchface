@@ -1,5 +1,12 @@
 <settings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
 
+    <setting propertyKey="@Properties.DogBreed" title="@Strings.DogBreedTitle">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.BreedCorgi</listEntry>
+            <listEntry value="1">@Strings.BreedAussie</listEntry>
+        </settingConfig>
+    </setting>
+
     <!-- All values are ARGB2222-safe: each R/G/B channel is one of
          {0x00, 0x55, 0xAA, 0xFF}, so fenix7s/fenix7spro's 4-level-per-channel
          display can't shift them the way the sprite gray did in Phase 1. -->

@@ -413,6 +413,12 @@ function testAllDrawablesLoad(logger as Test.Logger) as Boolean {
     ok = checkDrawableLoads(logger, "CorgiSplootFront", Rez.Drawables.CorgiSplootFront) && ok;
     ok = checkDrawableLoads(logger, "CorgiTailSpin", Rez.Drawables.CorgiTailSpin) && ok;
     ok = checkDrawableLoads(logger, "CorgiFootTaps", Rez.Drawables.CorgiFootTaps) && ok;
+    ok = checkDrawableLoads(logger, "AussieStanding", Rez.Drawables.AussieStanding) && ok;
+    ok = checkDrawableLoads(logger, "AussieLicking", Rez.Drawables.AussieLicking) && ok;
+    ok = checkDrawableLoads(logger, "AussieSplootRear", Rez.Drawables.AussieSplootRear) && ok;
+    ok = checkDrawableLoads(logger, "AussieSplootFront", Rez.Drawables.AussieSplootFront) && ok;
+    ok = checkDrawableLoads(logger, "AussieTailSpin", Rez.Drawables.AussieTailSpin) && ok;
+    ok = checkDrawableLoads(logger, "AussieFootTaps", Rez.Drawables.AussieFootTaps) && ok;
     ok = checkDrawableLoads(logger, "IconShoePrints", Rez.Drawables.IconShoePrints) && ok;
     ok = checkDrawableLoads(logger, "IconHeart", Rez.Drawables.IconHeart) && ok;
     ok = checkDrawableLoads(logger, "IconSun", Rez.Drawables.IconSun) && ok;
@@ -530,5 +536,18 @@ function testTrickResourcesSurviveHideShowCycle(logger as Test.Logger) as Boolea
         ok = false;
     }
     view.onHide(); // stop the timer startRandomTrick() started
+    return ok;
+}
+
+(:test)
+function testReloadBreedDoesNotThrow(logger as Test.Logger) as Boolean {
+    var view = new DogAnimationExperimentView();
+    var ok = true;
+    try {
+        view.reloadBreed();
+    } catch (ex) {
+        logger.debug("reloadBreed threw: " + ex.getErrorMessage());
+        ok = false;
+    }
     return ok;
 }

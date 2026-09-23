@@ -6,6 +6,12 @@
     <bitmap id="CorgiFootTaps" filename="corgi/corgi-foot-taps-sheet.png" dithering="none" />
     <bitmap id="CorgiSplootRear" filename="corgi/corgi-sploot-rear-sheet.png" dithering="none" />
     <bitmap id="CorgiSplootFront" filename="corgi/corgi-sploot-front-sheet.png" dithering="none" />
+    <bitmap id="AussieStanding" filename="aussie/aussie-standing-sheet.png" dithering="none" />
+    <bitmap id="AussieLicking" filename="aussie/aussie-licking-sheet.png" dithering="none" />
+    <bitmap id="AussieTailSpin" filename="aussie/aussie-tail-spin-sheet.png" dithering="none" />
+    <bitmap id="AussieFootTaps" filename="aussie/aussie-foot-taps-sheet.png" dithering="none" />
+    <bitmap id="AussieSplootRear" filename="aussie/aussie-sploot-rear-sheet.png" dithering="none" />
+    <bitmap id="AussieSplootFront" filename="aussie/aussie-sploot-front-sheet.png" dithering="none" />
 
     <!-- Icons: Font Awesome Free (CC BY 4.0) — see README.md "Icons" section and
          planning/refinement-strategy.md "Before publishing" for the attribution

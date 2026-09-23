@@ -2,6 +2,7 @@
 
     <string id="AppName">Dog Animation Experiment</string>
 
+    <string id="DogBreedTitle">Dog Breed</string>
     <string id="BackgroundColorTitle">Background Color</string>
     <string id="MilitaryFormatTitle">Military Format for 24 Hour Time</string>
     <string id="ShowStepsTitle">Show Steps</string>
@@ -13,6 +14,9 @@
     <string id="ShowFloorsTitle">Show Floors Climbed</string>
     <string id="ShowIntensityMinutesTitle">Show Intensity Minutes</string>
     <string id="ShowDistanceTitle">Show Distance</string>
+
+    <string id="BreedCorgi">Corgi</string>
+    <string id="BreedAussie">Australian Shepherd</string>
 
     <string id="ColorLightRed">Light Red</string>
     <string id="ColorLightBlue">Light Blue</string>

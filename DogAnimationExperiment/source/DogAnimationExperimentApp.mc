@@ -4,6 +4,8 @@ import Toybox.WatchUi;
 
 class DogAnimationExperimentApp extends Application.AppBase {
 
+    private var mView as DogAnimationExperimentView or Null = null;
+
     function initialize() {
         AppBase.initialize();
     }
@@ -18,11 +20,15 @@ class DogAnimationExperimentApp extends Application.AppBase {
 
     // Return the initial view of your application here
     function getInitialView() as [Views] or [Views, InputDelegates] {
-        return [ new DogAnimationExperimentView() ];
+        mView = new DogAnimationExperimentView();
+        return [ mView ];
     }
 
     // New app settings have been received so trigger a UI update
     function onSettingsChanged() as Void {
+        if (mView != null) {
+            mView.reloadBreed();
+        }
         WatchUi.requestUpdate();
     }
 

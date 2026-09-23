@@ -29,6 +29,10 @@ const CRITICAL_BATTERY_THRESHOLD_PERCENT = 10;
 
 const HIGH_STRESS_THRESHOLD = 76;
 
+// Matches the DogBreed listEntry values in settings.xml.
+const DOG_BREED_CORGI = 0;
+const DOG_BREED_AUSSIE = 1;
+
 // Sentinel for "not currently playing a trick" (valid states are keys
 // into mTricks).
 const STATE_IDLE = null;
@@ -110,7 +114,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     // Populated here, not onLayout() (which only runs once) -- onShow()/onHide()
     // fire on every foreground/background transition, per View's documented contract.
     function onShow() as Void {
-        mStandingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiStanding);
+        loadBreedResources();
         mFieldDefs = [
             { :propertyKey => "ShowSteps", :icon => WatchUi.loadResource(Rez.Drawables.IconShoePrints), :iconWidth => 23, :valueFn => method(:stepsValue) },
             { :propertyKey => "ShowHeartRate", :icon => WatchUi.loadResource(Rez.Drawables.IconHeart), :iconWidth => 20, :valueFn => method(:heartRateValue) },
@@ -138,11 +142,37 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             WatchUi.loadResource(Rez.Drawables.IconBatteryQuarter),
             WatchUi.loadResource(Rez.Drawables.IconBatteryEmpty),
         ];
-        var lickingBitmap = WatchUi.loadResource(Rez.Drawables.CorgiLicking);
-        var tailSpinBitmap = WatchUi.loadResource(Rez.Drawables.CorgiTailSpin);
-        var footTapsBitmap = WatchUi.loadResource(Rez.Drawables.CorgiFootTaps);
-        var splootRearBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSplootRear);
-        var splootFrontBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSplootFront);
+        mLowBatteryTrickShown = false;
+        mCriticalBatteryTrickShown = false;
+        mMoveAlertTrickShown = false;
+        mHighStressTrickShown = false;
+        enterIdle();
+    }
+
+    // Loads mStandingBitmap/mTricks/mRandomTrickKeys for the current
+    // DogBreed setting. Never touches mAnimTimer.
+    private function loadBreedResources() as Void {
+        var standingRes = Rez.Drawables.CorgiStanding;
+        var lickingRes = Rez.Drawables.CorgiLicking;
+        var tailSpinRes = Rez.Drawables.CorgiTailSpin;
+        var footTapsRes = Rez.Drawables.CorgiFootTaps;
+        var splootRearRes = Rez.Drawables.CorgiSplootRear;
+        var splootFrontRes = Rez.Drawables.CorgiSplootFront;
+        if ((Properties.getValue("DogBreed") as Number) == DOG_BREED_AUSSIE) {
+            standingRes = Rez.Drawables.AussieStanding;
+            lickingRes = Rez.Drawables.AussieLicking;
+            tailSpinRes = Rez.Drawables.AussieTailSpin;
+            footTapsRes = Rez.Drawables.AussieFootTaps;
+            splootRearRes = Rez.Drawables.AussieSplootRear;
+            splootFrontRes = Rez.Drawables.AussieSplootFront;
+        }
+
+        mStandingBitmap = WatchUi.loadResource(standingRes);
+        var lickingBitmap = WatchUi.loadResource(lickingRes);
+        var tailSpinBitmap = WatchUi.loadResource(tailSpinRes);
+        var footTapsBitmap = WatchUi.loadResource(footTapsRes);
+        var splootRearBitmap = WatchUi.loadResource(splootRearRes);
+        var splootFrontBitmap = WatchUi.loadResource(splootFrontRes);
 
         mTricks = {
             :lick => [
@@ -167,12 +197,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             ],
         };
         mRandomTrickKeys = [:lick, :tailSpin, :splootRear, :footTaps];
+    }
 
-        mLowBatteryTrickShown = false;
-        mCriticalBatteryTrickShown = false;
-        mMoveAlertTrickShown = false;
-        mHighStressTrickShown = false;
-        enterIdle();
+    function reloadBreed() as Void {
+        loadBreedResources();
+        WatchUi.requestUpdate();
     }
 
     // Idle (standing, blinking) -> random trick -> idle ...

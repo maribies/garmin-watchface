@@ -87,6 +87,12 @@ Assets already present (frame counts inferred from sheet width ÷ 120px, same as
 
 The choices will be the corgi or an aussie. The choice will be made in the settings. Hopefully we can choose to only load the necessary resource files. All the animations and triggers will remain the same.
 
+**Done.** `DogBreed` Settings property (Corgi/Aussie), `resources/drawables/aussie/` sprites (same 6 sheets as corgi, same frame counts), `onShow()` branches resource loading by breed while `mTricks`'s structure (keys, triggers) stays identical either way. Asset creation followed `sprite-recipe.md`'s section 7 ("Adapting to another breed").
+
+One correction to the original plan: "only load the necessary resource files" is partially, not fully, achievable — Monkey C bundles every `drawables.xml`-declared resource into the compiled package regardless of the runtime Settings value, since Settings aren't known at compile time. A breed picker can only control which bitmaps get loaded into *active memory* at runtime (which is what's implemented), not which ship in the installed `.prg`/`.iq`. Not a real problem in practice: Phase 0's own memory-budget research established each sheet sits around 15% of the per-resource ceiling and the limit isn't cumulative, so 12 sheets total (both breeds bundled) is still comfortably within budget.
+
+Breed changes now take effect live via `onSettingsChanged()` too, not just on the next `onShow()`. Initially left unwired because `Timer.start()`'s own documentation warns it "will cause an app crash if called from a watch face app while in low power mode," and `onShow()` reaches it via `enterIdle()` — but `loadResource()` itself carries no such warning, so the breed-dependent bitmap loading was split out into `loadBreedResources()`/`reloadBreed()`, callable from `onSettingsChanged()` without ever touching `mAnimTimer`.
+
 ---
 
 ---
