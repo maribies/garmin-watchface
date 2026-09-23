@@ -27,9 +27,9 @@ const MAX_TRICK_DELAY_TICKS = 25;
 const LOW_BATTERY_THRESHOLD_PERCENT = 20;
 const CRITICAL_BATTERY_THRESHOLD_PERCENT = 10;
 
-// Sentinel for "not currently playing a trick" (valid states are indices
+// Sentinel for "not currently playing a trick" (valid states are keys
 // into mTricks).
-const STATE_IDLE = -1;
+const STATE_IDLE = null;
 
 // Icon sizes as registered in drawables.xml (aspect-correct, ~20px tall).
 const BATTERY_ICON_WIDTH = 25;
@@ -71,11 +71,10 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mWeatherIcons as Dictionary<Symbol, Dictionary> or Null = null;
 
     // Each trick is an Array of clips ({:bitmap, :startFrame, :frameCount,
-    // :tickMs, :repeat}), played in order.
-    private var mTricks as Array<Array<Dictionary> > or Null = null;
-    private var mRandomTrickPoolSize = 0;
-    private var mSplootFrontTrickIndex = 0;
-    private var mMoveAlertTrickIndex = 0;
+    // :tickMs, :repeat}), played in order, keyed by name. mRandomTrickKeys
+    // lists which keys the random pool draws from.
+    private var mTricks as Dictionary<Symbol, Array<Dictionary> > or Null = null;
+    private var mRandomTrickKeys as Array<Symbol> or Null = null;
 
     private var mAnimTimer = null;
     private var mState = STATE_IDLE;
@@ -142,38 +141,29 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var splootRearBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSplootRear);
         var splootFrontBitmap = WatchUi.loadResource(Rez.Drawables.CorgiSplootFront);
 
-        var randomTricks = [
-            [
+        mTricks = {
+            :lick => [
                 { :bitmap => lickingBitmap, :startFrame => 0, :frameCount => 11, :tickMs => 150, :repeat => true },
             ],
-            [
+            :tailSpin => [
                 { :bitmap => tailSpinBitmap, :startFrame => 0, :frameCount => 9, :tickMs => 130, :repeat => true },
             ],
-            // Sploot (rear view): 10 frames at 150ms
-            [
+            :splootRear => [
                 { :bitmap => splootRearBitmap, :startFrame => 0, :frameCount => 10, :tickMs => 150, :repeat => true },
             ],
-            // Foot taps: 5 frames at 130ms
-            [
+            :footTaps => [
                 { :bitmap => footTapsBitmap, :startFrame => 0, :frameCount => 5, :tickMs => 130, :repeat => true },
             ],
-        ];
-        mRandomTrickPoolSize = randomTricks.size();
-
-        var conditionalTricks = [];
-        mSplootFrontTrickIndex = mRandomTrickPoolSize + conditionalTricks.size();
-        // Sploot (front view): 8 frames at 150ms
-        conditionalTricks.add([
-            { :bitmap => splootFrontBitmap, :startFrame => 0, :frameCount => 8, :tickMs => 150, :repeat => true },
-        ]);
-        mMoveAlertTrickIndex = mRandomTrickPoolSize + conditionalTricks.size();
-        // Move alert: reuses tail spin
-        conditionalTricks.add([
-            { :bitmap => tailSpinBitmap, :startFrame => 0, :frameCount => 9, :tickMs => 130, :repeat => true },
-        ]);
-
-        mTricks = randomTricks;
-        mTricks.addAll(conditionalTricks);
+            // Conditional -- low battery.
+            :splootFront => [
+                { :bitmap => splootFrontBitmap, :startFrame => 0, :frameCount => 8, :tickMs => 150, :repeat => true },
+            ],
+            // Conditional -- move alert. Reuses tail spin
+            :moveAlert => [
+                { :bitmap => tailSpinBitmap, :startFrame => 0, :frameCount => 9, :tickMs => 130, :repeat => true },
+            ],
+        };
+        mRandomTrickKeys = [:lick, :tailSpin, :splootRear, :footTaps];
 
         mLowBatteryTrickShown = false;
         mCriticalBatteryTrickShown = false;
@@ -188,13 +178,13 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             if (!mCriticalBatteryTrickShown && isLowBattery(battery, CRITICAL_BATTERY_THRESHOLD_PERCENT)) {
                 mLowBatteryTrickShown = true;
                 mCriticalBatteryTrickShown = true;
-                startTrick(mSplootFrontTrickIndex);
+                startTrick(:splootFront);
             } else if (!mLowBatteryTrickShown && isLowBattery(battery, LOW_BATTERY_THRESHOLD_PERCENT)) {
                 mLowBatteryTrickShown = true;
-                startTrick(mSplootFrontTrickIndex);
+                startTrick(:splootFront);
             } else if (!mMoveAlertTrickShown && isMoveBarMax(ActivityMonitor.getInfo().moveBarLevel, ActivityMonitor.MOVE_BAR_LEVEL_MAX)) {
                 mMoveAlertTrickShown = true;
-                startTrick(mMoveAlertTrickIndex);
+                startTrick(:moveAlert);
             } else {
                 mOrderIndex = advanceOrderIndex(mOrderIndex);
                 mTicksUntilTrick -= 1;
@@ -221,15 +211,16 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     function startRandomTrick() as Void {
-        startTrick(pickTrickIndex(Math.rand(), mRandomTrickPoolSize));
+        var idx = pickTrickIndex(Math.rand(), mRandomTrickKeys.size());
+        startTrick(mRandomTrickKeys[idx]);
     }
 
     function randomTrickPoolSize() as Number {
-        return mRandomTrickPoolSize;
+        return mRandomTrickKeys.size();
     }
 
-    function startTrick(index as Number) as Void {
-        mState = index;
+    function startTrick(key as Symbol) as Void {
+        mState = key;
         mClipIndex = 0;
         mClipFrame = 0;
         configureTimerForClip(mTricks[mState][0]);
