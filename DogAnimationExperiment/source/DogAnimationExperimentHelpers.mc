@@ -58,6 +58,10 @@ function isLowBattery(percent as Number, thresholdPercent as Number) as Boolean 
     return percent <= thresholdPercent;
 }
 
+function shouldAlertLowBattery(percent as Number, thresholdPercent as Number, charging as Boolean) as Boolean {
+    return !charging && isLowBattery(percent, thresholdPercent);
+}
+
 function isMoveBarMax(level as Number, maxLevel as Number) as Boolean {
     return level >= maxLevel;
 }

@@ -306,6 +306,26 @@ function testIsLowBatteryAtThreshold(logger as Test.Logger) as Boolean {
 }
 
 (:test)
+function testLowBatteryAlertSuppressedWhileCharging(logger as Test.Logger) as Boolean {
+    var cases = [
+        // [percent, threshold, charging, expected]
+        [15, 20, false, true],
+        [15, 20, true, false],
+        [25, 20, false, false],
+        [25, 20, true, false],
+    ];
+    var ok = true;
+    for (var i = 0; i < cases.size(); i += 1) {
+        var got = shouldAlertLowBattery(cases[i][0], cases[i][1], cases[i][2]);
+        if (got != cases[i][3]) {
+            logger.debug("case " + i + " expected=" + cases[i][3] + " got=" + got);
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+(:test)
 function testIsMoveBarMaxAtThreshold(logger as Test.Logger) as Boolean {
     var cases = [
         [4, 5, false], [5, 5, true], [6, 5, true], [0, 5, false],

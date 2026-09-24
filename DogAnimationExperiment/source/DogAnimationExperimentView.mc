@@ -287,14 +287,15 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     // Idle (standing, blinking) -> random trick -> idle ...
     function onAnimTimer() as Void {
         if (mState == STATE_IDLE) {
-            var battery = System.getSystemStats().battery.toNumber();
+            var stats = System.getSystemStats();
+            var battery = stats.battery.toNumber();
             var moveBarLevel = null;
             if (mCurrentActivityInfo != null) {
                 moveBarLevel = mCurrentActivityInfo.moveBarLevel;
             }
             var active = {
-                :criticalBattery => isLowBattery(battery, CRITICAL_BATTERY_THRESHOLD_PERCENT),
-                :lowBattery => isLowBattery(battery, LOW_BATTERY_THRESHOLD_PERCENT),
+                :criticalBattery => shouldAlertLowBattery(battery, CRITICAL_BATTERY_THRESHOLD_PERCENT, stats.charging),
+                :lowBattery => shouldAlertLowBattery(battery, LOW_BATTERY_THRESHOLD_PERCENT, stats.charging),
                 :moveAlert => moveBarLevel != null && isMoveBarMax(moveBarLevel, ActivityMonitor.MOVE_BAR_LEVEL_MAX),
                 :highStress => mStressLevel != null && isHighStress(mStressLevel, HIGH_STRESS_THRESHOLD),
             };
