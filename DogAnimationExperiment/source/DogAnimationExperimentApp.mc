@@ -34,7 +34,3 @@ class DogAnimationExperimentApp extends Application.AppBase {
     }
 
 }
-
-function getApp() as DogAnimationExperimentApp {
-    return Application.getApp() as DogAnimationExperimentApp;
-}

@@ -115,6 +115,8 @@ One thing surfaced worth knowing: `vivoactive6` (and several of the newer additi
 
 **Post-review fix:** `onShow()` no longer starts the animation timer in low-power mode (`Timer.start()` crashes a watch face there); `onExitSleep()` starts it on wake. Low power comes from `System.getDisplayMode()` where available (AMOLED), else a sleep flag (`isLowPowerMode()`).
 
+**Post-review cleanup:** `Math.rand()` now seeded in `initialize()`; date cache cleared in `onHide()`; unused `layout.xml`, `Background.mc` and `getApp()` removed; stale corgi-only and sit/stand comments updated.
+
 
 ---
 

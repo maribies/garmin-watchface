@@ -12,7 +12,7 @@ import Toybox.Timer;
 import Toybox.WatchUi;
 import Toybox.Weather;
 
-// All corgi sprite sheets use 120x120 frames.
+// All dog sprite sheets use 120x120 frames.
 const FRAME_SIZE = 120;
 
 // Standing idle play order: rest, bob-down, rest, blink-closed (see planning/sprite-recipe.md)
@@ -120,6 +120,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     function initialize() {
         WatchFace.initialize();
+        Math.srand(System.getTimer());
         for (var i = 0; i < TRIGGER_ORDER.size(); i += 1) {
             mTriggerArmed[TRIGGER_ORDER[i]] = true;
         }
@@ -639,6 +640,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         mBatteryIcons = null;
         mTricks = null;
         mFieldRender = null;
+        mCachedDateString = null;
         invalidateFieldCache();
     }
 

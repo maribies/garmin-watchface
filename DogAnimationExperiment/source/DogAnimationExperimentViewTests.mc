@@ -564,15 +564,13 @@ function checkDrawableLoads(logger as Test.Logger, name as String, id as Resourc
 
 (:test)
 function testClipProgressWalksMultiClipTrick(logger as Test.Logger) as Boolean {
-    // Walks the sit-down -> seated-pause -> stand-up trick's clip sequence
-    // via the pure step function and asserts clip index + frame at each
-    // tick. This is the exact class of off-by-one state-machine bug that
-    // broke Phase 2 once, now generalized to any multi-clip trick rather
-    // than hardcoded to this one.
+    // Walks a 3-clip trick (5 frames, a 1-frame hold, 5 frames) via the pure
+    // step function and asserts clip index + frame at each tick. Guards the
+    // off-by-one class of state-machine bug that broke Phase 2 once.
     var clips = [
-        { :frameCount => 5 }, // sit down
-        { :frameCount => 1 }, // hold seated
-        { :frameCount => 5 }, // stand back up
+        { :frameCount => 5 },
+        { :frameCount => 1 },
+        { :frameCount => 5 },
     ];
 
     var clipIndex = 0;
@@ -580,42 +578,42 @@ function testClipProgressWalksMultiClipTrick(logger as Test.Logger) as Boolean {
     var ok = true;
     var step;
 
-    // Clip 0 (sit down): frames 0->1->2->3->4 across 5 ticks.
+    // Clip 0: frames 0->1->2->3->4 across 5 ticks.
     for (var i = 0; i < 4; i += 1) {
         step = nextClipProgress(clipIndex, clipFrame, clips);
         clipIndex = step[0];
         clipFrame = step[1];
         if (clipIndex != 0 || clipFrame != i + 1) {
-            logger.debug("sit-down step " + i + " got clip=" + clipIndex + " frame=" + clipFrame);
+            logger.debug("clip 0 step " + i + " got clip=" + clipIndex + " frame=" + clipFrame);
             ok = false;
         }
     }
 
-    // 5th tick on clip 0 completes it -> advances to clip 1 (seated pause), frame reset to 0.
+    // 5th tick on clip 0 completes it -> advances to clip 1, frame reset to 0.
     step = nextClipProgress(clipIndex, clipFrame, clips);
     clipIndex = step[0];
     clipFrame = step[1];
     if (clipIndex != 1 || clipFrame != 0) {
-        logger.debug("seated-pause entry got clip=" + clipIndex + " frame=" + clipFrame);
+        logger.debug("clip 1 entry got clip=" + clipIndex + " frame=" + clipFrame);
         ok = false;
     }
 
-    // Pause tick (1-frame clip) completes immediately -> advances to clip 2 (stand up).
+    // Pause tick (1-frame clip) completes immediately -> advances to clip 2.
     step = nextClipProgress(clipIndex, clipFrame, clips);
     clipIndex = step[0];
     clipFrame = step[1];
     if (clipIndex != 2 || clipFrame != 0) {
-        logger.debug("stand-up entry got clip=" + clipIndex + " frame=" + clipFrame);
+        logger.debug("clip 2 entry got clip=" + clipIndex + " frame=" + clipFrame);
         ok = false;
     }
 
-    // Clip 2 (stand up): frames 0->1->2->3->4 across 5 ticks.
+    // Clip 2: frames 0->1->2->3->4 across 5 ticks.
     for (var j = 0; j < 4; j += 1) {
         step = nextClipProgress(clipIndex, clipFrame, clips);
         clipIndex = step[0];
         clipFrame = step[1];
         if (clipIndex != 2 || clipFrame != j + 1) {
-            logger.debug("stand-up step " + j + " got clip=" + clipIndex + " frame=" + clipFrame);
+            logger.debug("clip 2 step " + j + " got clip=" + clipIndex + " frame=" + clipFrame);
             ok = false;
         }
     }
