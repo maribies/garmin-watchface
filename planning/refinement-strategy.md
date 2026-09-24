@@ -134,7 +134,7 @@ Two kinds of verification, and neither substitutes for the other — this bit us
 ## Deferred
 
 Surfaced by the in-depth review:
-- Launcher icon is 24×24 but `fenix7s` wants 40×40 — it's being auto-upscaled and will look soft on-device (`-w` build warning). Cosmetic, independent of the phases above.
+- ~~Launcher icon is 24×24 but `fenix7s` wants 40×40 — it's being auto-upscaled and will look soft on-device.~~ **Resolved.** Replaced with a dog-paw-print design (`launcher_icon.svg`) sized 110×110 (above the largest of the 8 distinct sizes the 43-device manifest now needs, 40-70px), so every device downscales from the source instead of upscaling. The `-w` build still prints a "scaled to target size" notice per device since no single source size matches all of them exactly, but that's now cosmetic only — quality-wise every target is a downscale.
 
 Continued from [coding-strategy.md](coding-strategy.md)'s own Deferred list:
 - Developer key signing (needed only for device sideload / store submission, not simulator)
