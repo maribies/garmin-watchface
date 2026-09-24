@@ -103,6 +103,10 @@ I would like to extend support for friends to be able to use, if possible.
 - vivioactive 6
 Let's support as many as possible. First research and confirm with the API and docs before committing.
 
+**Done.** Manifest now targets 43 devices (up from 5), every one confirmed round with a square pixel buffer (matches the `chordHalfWidthAt()` assumption `assignFieldPositions`/`drawFields` depend on) and API level 5.2+ (our manifest's `minApiLevel`), via each device's own `compiler.json` (`deviceFamily`, `deviceGroup`) in the locally-installed SDK device packages. `vivoactive6` specifically also checked against its own `vivoactive6.api.debug.xml` for every sensor API this app calls (`getStressHistory`, `getBodyBatteryHistory`, `getCurrentConditions`, `moveBarLevel`, `getHeartRateHistory`, `drawScaledBitmap`) — all present. All 43 build clean (only the same cosmetic launcher-icon-upscale warning every device already had, now at each device's own target size). `scripts/build.sh`'s `DEVICES` array updated to match.
+
+One thing surfaced worth knowing: `vivoactive6` (and several of the newer additions) are 16-bit-per-pixel AMOLED displays, not the 4-level-per-channel displays `fenix7s`/`fenix7spro` have — the `ARGB2222`-safe palette constraint (Phase A) only actually applies to that older display class. Not a problem now (the existing safe palette is a strict subset of what richer displays can show), but the "every supported device" framing in Phase A's `ARGB2222` comments is no longer literally true across the full device list — a genuinely 4-level-limited device isn't a given anymore, just still present among the older fenix models.
+
 
 ---
 

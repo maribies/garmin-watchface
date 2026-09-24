@@ -14,7 +14,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_DIR="$ROOT_DIR/DogAnimationExperiment"
 DEV_KEY="$ROOT_DIR/keys/developer_key"
-DEVICES=(fenix7pro fenix7pronowifi fenix7s fenix7spro fenix8solar47mm)
+DEVICES=(d2mach1 d2mach2 d2mach2pro enduro3 epix2 epix2pro42mm epix2pro47mm epix2pro51mm fenix7 fenix7pro fenix7pronowifi fenix7s fenix7spro fenix7x fenix7xpro fenix7xpronowifi fenix843mm fenix847mm fenix8pro47mm fenix8solar47mm fenix8solar51mm fenixe fr165 fr165m fr255 fr255m fr255s fr255sm fr265 fr265s fr57042mm fr57047mm fr955 fr965 fr970 marq2 marq2aviator venu3 venu3s venu441mm venu445mm vivoactive5 vivoactive6)
 
 if [ -z "${CONNECTIQ_SDK_HOME:-}" ]; then
     CONNECTIQ_SDK_HOME=$(find "$HOME/Library/Application Support/Garmin/ConnectIQ/Sdks" -maxdepth 1 -iname "connectiq-sdk-*" -type d 2>/dev/null | sort | tail -1)
