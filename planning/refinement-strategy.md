@@ -107,6 +107,8 @@ Let's support as many as possible. First research and confirm with the API and d
 
 One thing surfaced worth knowing: `vivoactive6` (and several of the newer additions) are 16-bit-per-pixel AMOLED displays, not the 4-level-per-channel displays `fenix7s`/`fenix7spro` have — the `ARGB2222`-safe palette constraint (Phase A) only actually applies to that older display class. Not a problem now (the existing safe palette is a strict subset of what richer displays can show), but the "every supported device" framing in Phase A's `ARGB2222` comments is no longer literally true across the full device list — a genuinely 4-level-limited device isn't a given anymore, just still present among the older fenix models.
 
+**Post-review fix:** 27 of the 43 devices are AMOLED. Per the SDK's AMOLED FAQ, a sleeping face over 10% screen luminance gets the screen shut off, which the full-color background always exceeded. On burn-in-protected devices outside high-power display mode, `onUpdate()` now draws a black face with time in the user's background color and date in its `darkerTint()`, stationary (the no-pixel-on-over-3-minutes rule only applied to the original Venu; every AMOLED device here is Venu 2 or newer, where only the 10% luminance rule applies). Simulator heat map on venu3: 0.87% luminance, no burn-in.
+
 
 ---
 

@@ -149,6 +149,12 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         enterIdle();
     }
 
+    private function needsBurnInSafeFace() as Boolean {
+        return System.getDeviceSettings().requiresBurnInProtection
+            && (System has :getDisplayMode)
+            && System.getDisplayMode() != System.DISPLAY_MODE_HIGH_POWER;
+    }
+
     // Loads mStandingBitmap/mTricks/mRandomTrickKeys for the current
     // DogBreed setting. Never touches mAnimTimer.
     private function loadBreedResources() as Void {
@@ -293,6 +299,14 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
         // Background — user-configurable via Settings (Properties.BackgroundColor).
         var backgroundColor = Properties.getValue("BackgroundColor") as Number;
+
+        if (needsBurnInSafeFace()) {
+            dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+            dc.clear();
+            drawTimeDate(dc, cx, height, pad, backgroundColor, darkerTint(backgroundColor));
+            return;
+        }
+
         dc.setColor(backgroundColor, backgroundColor);
         dc.clear();
 
@@ -311,7 +325,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
         // Time + date — bottom center, time larger/prominent, date small
         // beneath it, whole block anchored to the bottom padding.
-        drawTimeDate(dc, cx, height, pad, subtextColor);
+        drawTimeDate(dc, cx, height, pad, Graphics.COLOR_BLACK, subtextColor);
     }
 
     // Battery icon, level-selected, centered horizontally at the given y.
@@ -542,7 +556,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     // Time (large, prominent) above date (small), bottom center, whole block
     // anchored to the bottom padding.
-    private function drawTimeDate(dc as Dc, cx as Number, height as Number, pad as Number, dateColor as Number) as Void {
+    private function drawTimeDate(dc as Dc, cx as Number, height as Number, pad as Number, timeColor as Number, dateColor as Number) as Void {
         var dateHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_XTINY);
         var dateY = height - pad - dateHeight;
         var timeY = timeBlockTopY(height, pad);
@@ -558,7 +572,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             }
         }
         var timeString = Lang.format("$1$:$2$", [hours, clockTime.min.format("%02d")]);
-        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(timeColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, timeY, Graphics.FONT_SYSTEM_LARGE, timeString, Graphics.TEXT_JUSTIFY_CENTER);
 
         // The date only changes once a day; Gregorian.info() does real
