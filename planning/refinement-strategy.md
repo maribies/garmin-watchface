@@ -115,6 +115,8 @@ One thing surfaced worth knowing: `vivoactive6` (and several of the newer additi
 
 **Post-review fix:** `onShow()` no longer starts the animation timer in low-power mode (`Timer.start()` crashes a watch face there); `onExitSleep()` starts it on wake. Low power comes from `System.getDisplayMode()` where available (AMOLED), else a sleep flag (`isLowPowerMode()`).
 
+**Package size:** sprite sheets now use `compress="true"`, so every device's package is 218–225KB (was up to 1.46MB on MIP devices, which stored sprites uncompressed at 8 bits/pixel). Runtime memory is unchanged; the load-time cost of decompressing in `onShow()` still needs checking on a physical device.
+
 **Post-review cleanup:** `Math.rand()` now seeded in `initialize()`; date cache cleared in `onHide()`; unused `layout.xml`, `Background.mc` and `getApp()` removed; stale corgi-only and sit/stand comments updated.
 
 

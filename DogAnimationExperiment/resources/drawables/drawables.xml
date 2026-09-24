@@ -1,17 +1,17 @@
 <drawables xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
     <bitmap id="LauncherIcon" filename="launcher_icon.svg" dithering="none" />
-    <bitmap id="CorgiStanding" filename="corgi/corgi-standing-sheet.png" dithering="none" />
-    <bitmap id="CorgiLicking" filename="corgi/corgi-licking-sheet.png" dithering="none" />
-    <bitmap id="CorgiTailSpin" filename="corgi/corgi-tail-spin-sheet.png" dithering="none" />
-    <bitmap id="CorgiFootTaps" filename="corgi/corgi-foot-taps-sheet.png" dithering="none" />
-    <bitmap id="CorgiSplootRear" filename="corgi/corgi-sploot-rear-sheet.png" dithering="none" />
-    <bitmap id="CorgiSplootFront" filename="corgi/corgi-sploot-front-sheet.png" dithering="none" />
-    <bitmap id="AussieStanding" filename="aussie/aussie-standing-sheet.png" dithering="none" />
-    <bitmap id="AussieLicking" filename="aussie/aussie-licking-sheet.png" dithering="none" />
-    <bitmap id="AussieTailSpin" filename="aussie/aussie-tail-spin-sheet.png" dithering="none" />
-    <bitmap id="AussieFootTaps" filename="aussie/aussie-foot-taps-sheet.png" dithering="none" />
-    <bitmap id="AussieSplootRear" filename="aussie/aussie-sploot-rear-sheet.png" dithering="none" />
-    <bitmap id="AussieSplootFront" filename="aussie/aussie-sploot-front-sheet.png" dithering="none" />
+    <bitmap id="CorgiStanding" filename="corgi/corgi-standing-sheet.png" dithering="none" compress="true" />
+    <bitmap id="CorgiLicking" filename="corgi/corgi-licking-sheet.png" dithering="none" compress="true" />
+    <bitmap id="CorgiTailSpin" filename="corgi/corgi-tail-spin-sheet.png" dithering="none" compress="true" />
+    <bitmap id="CorgiFootTaps" filename="corgi/corgi-foot-taps-sheet.png" dithering="none" compress="true" />
+    <bitmap id="CorgiSplootRear" filename="corgi/corgi-sploot-rear-sheet.png" dithering="none" compress="true" />
+    <bitmap id="CorgiSplootFront" filename="corgi/corgi-sploot-front-sheet.png" dithering="none" compress="true" />
+    <bitmap id="AussieStanding" filename="aussie/aussie-standing-sheet.png" dithering="none" compress="true" />
+    <bitmap id="AussieLicking" filename="aussie/aussie-licking-sheet.png" dithering="none" compress="true" />
+    <bitmap id="AussieTailSpin" filename="aussie/aussie-tail-spin-sheet.png" dithering="none" compress="true" />
+    <bitmap id="AussieFootTaps" filename="aussie/aussie-foot-taps-sheet.png" dithering="none" compress="true" />
+    <bitmap id="AussieSplootRear" filename="aussie/aussie-sploot-rear-sheet.png" dithering="none" compress="true" />
+    <bitmap id="AussieSplootFront" filename="aussie/aussie-sploot-front-sheet.png" dithering="none" compress="true" />
 
     <!-- Icons: Font Awesome Free (CC BY 4.0) — see README.md "Icons" section and
          planning/refinement-strategy.md "Before publishing" for the attribution
