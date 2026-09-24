@@ -56,6 +56,30 @@ function isHighStress(level as Number, thresholdLevel as Number) as Boolean {
     return level >= thresholdLevel;
 }
 
+// One idle tick of the conditional triggers. Re-arms any whose condition
+// is false, then fires the first (in order) that is armed and active,
+// disarming it and every other active trigger that plays the same trick.
+// Mutates armed. Returns the fired key, or null.
+function stepTriggers(order as Array<Symbol>, tricks as Dictionary, armed as Dictionary, active as Dictionary) as Symbol or Null {
+    for (var i = 0; i < order.size(); i += 1) {
+        if (!active[order[i]]) {
+            armed[order[i]] = true;
+        }
+    }
+    for (var i = 0; i < order.size(); i += 1) {
+        var key = order[i];
+        if (armed[key] && active[key]) {
+            for (var j = 0; j < order.size(); j += 1) {
+                if (active[order[j]] && tricks[order[j]] == tricks[key]) {
+                    armed[order[j]] = false;
+                }
+            }
+            return key;
+        }
+    }
+    return null;
+}
+
 // True if every R/G/B channel is one of {0x00, 0x55, 0xAA, 0xFF} — the 4
 // levels ARGB2222 displays actually render; anything else gets silently
 // shifted at render time.

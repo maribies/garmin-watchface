@@ -29,6 +29,15 @@ const CRITICAL_BATTERY_THRESHOLD_PERCENT = 10;
 
 const HIGH_STRESS_THRESHOLD = 76;
 
+// Conditional triggers in priority order, and the trick each plays.
+const TRIGGER_ORDER = [:criticalBattery, :lowBattery, :moveAlert, :highStress];
+const TRIGGER_TRICKS = {
+    :criticalBattery => :splootFront,
+    :lowBattery => :splootFront,
+    :moveAlert => :moveAlert,
+    :highStress => :lick,
+};
+
 // Matches the DogBreed listEntry values in settings.xml.
 const DOG_BREED_CORGI = 0;
 const DOG_BREED_AUSSIE = 1;
@@ -88,11 +97,8 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mClipIndex = 0; // trick only: which clip within mTricks[mState]
     private var mClipFrame = 0; // trick only: 0-based frame progress within the current clip
     private var mTicksUntilTrick = MIN_TRICK_DELAY_TICKS;
-    // Each fires once per onShow(), not on every low-battery tick.
-    private var mLowBatteryTrickShown = false;
-    private var mCriticalBatteryTrickShown = false;
-    private var mMoveAlertTrickShown = false;
-    private var mHighStressTrickShown = false;
+    // Keyed by TRIGGER_ORDER; see stepTriggers.
+    private var mTriggerArmed as Dictionary<Symbol, Boolean> = {};
 
     // Cached formatted date string, recomputed only when the hour changes
     // (see drawTimeDate).
@@ -103,6 +109,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     // methods so they don't each fetch the same data independently.
     private var mCurrentActivityInfo as ActivityMonitor.Info or Null = null;
     private var mCurrentDeviceSettings as System.DeviceSettings or Null = null;
+    private var mStressLevel as Number or Null = null;
 
     private var mFieldCacheMinute as Number or Null = null;
     private var mBackgroundColor as Number = 0;
@@ -112,6 +119,9 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     function initialize() {
         WatchFace.initialize();
+        for (var i = 0; i < TRIGGER_ORDER.size(); i += 1) {
+            mTriggerArmed[TRIGGER_ORDER[i]] = true;
+        }
     }
 
     function onLayout(dc as Dc) as Void {
@@ -148,10 +158,6 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             WatchUi.loadResource(Rez.Drawables.IconBatteryQuarter),
             WatchUi.loadResource(Rez.Drawables.IconBatteryEmpty),
         ];
-        mLowBatteryTrickShown = false;
-        mCriticalBatteryTrickShown = false;
-        mMoveAlertTrickShown = false;
-        mHighStressTrickShown = false;
         invalidateFieldCache();
         enterIdle();
     }
@@ -165,6 +171,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         mUseMilitaryFormat = Properties.getValue("UseMilitaryFormat") as Boolean;
         mCurrentActivityInfo = ActivityMonitor.getInfo();
         mCurrentDeviceSettings = System.getDeviceSettings();
+        mStressLevel = currentStressLevel();
 
         var enabled = new [mFieldDefs.size()];
         for (var i = 0; i < mFieldDefs.size(); i += 1) {
@@ -264,19 +271,19 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     function onAnimTimer() as Void {
         if (mState == STATE_IDLE) {
             var battery = System.getSystemStats().battery.toNumber();
-            if (!mCriticalBatteryTrickShown && isLowBattery(battery, CRITICAL_BATTERY_THRESHOLD_PERCENT)) {
-                mLowBatteryTrickShown = true;
-                mCriticalBatteryTrickShown = true;
-                startTrick(:splootFront);
-            } else if (!mLowBatteryTrickShown && isLowBattery(battery, LOW_BATTERY_THRESHOLD_PERCENT)) {
-                mLowBatteryTrickShown = true;
-                startTrick(:splootFront);
-            } else if (!mMoveAlertTrickShown && isMoveBarMax(ActivityMonitor.getInfo().moveBarLevel, ActivityMonitor.MOVE_BAR_LEVEL_MAX)) {
-                mMoveAlertTrickShown = true;
-                startTrick(:moveAlert);
-            } else if (!mHighStressTrickShown && isStressHighNow()) {
-                mHighStressTrickShown = true;
-                startTrick(:lick);
+            var moveBarLevel = null;
+            if (mCurrentActivityInfo != null) {
+                moveBarLevel = mCurrentActivityInfo.moveBarLevel;
+            }
+            var active = {
+                :criticalBattery => isLowBattery(battery, CRITICAL_BATTERY_THRESHOLD_PERCENT),
+                :lowBattery => isLowBattery(battery, LOW_BATTERY_THRESHOLD_PERCENT),
+                :moveAlert => moveBarLevel != null && isMoveBarMax(moveBarLevel, ActivityMonitor.MOVE_BAR_LEVEL_MAX),
+                :highStress => mStressLevel != null && isHighStress(mStressLevel, HIGH_STRESS_THRESHOLD),
+            };
+            var fired = stepTriggers(TRIGGER_ORDER, TRIGGER_TRICKS, mTriggerArmed, active);
+            if (fired != null) {
+                startTrick(TRIGGER_TRICKS[fired]);
             } else {
                 mOrderIndex = advanceOrderIndex(mOrderIndex);
                 mTicksUntilTrick -= 1;
@@ -523,11 +530,6 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             level = sample.data.toNumber();
         }
         return formatFieldValue(level, "");
-    }
-
-    private function isStressHighNow() as Boolean {
-        var level = currentStressLevel();
-        return level != null && isHighStress(level, HIGH_STRESS_THRESHOLD);
     }
 
     private function currentStressLevel() as Number or Null {

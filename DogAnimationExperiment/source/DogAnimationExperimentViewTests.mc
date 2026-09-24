@@ -342,6 +342,77 @@ function testIsHighStressAtThreshold(logger as Test.Logger) as Boolean {
     return ok;
 }
 
+function activeTriggers(activeKeys as Array<Symbol>) as Dictionary {
+    var active = {};
+    for (var i = 0; i < TRIGGER_ORDER.size(); i += 1) {
+        active[TRIGGER_ORDER[i]] = activeKeys.indexOf(TRIGGER_ORDER[i]) != -1;
+    }
+    return active;
+}
+
+function batteryTriggers(percent as Number) as Dictionary {
+    var active = activeTriggers([]);
+    active[:criticalBattery] = isLowBattery(percent, CRITICAL_BATTERY_THRESHOLD_PERCENT);
+    active[:lowBattery] = isLowBattery(percent, LOW_BATTERY_THRESHOLD_PERCENT);
+    return active;
+}
+
+// Feeds one active dict per tick through stepTriggers, starting all armed,
+// and checks which trigger (or null) fires on each tick.
+function checkTriggerSequence(logger as Test.Logger, actives as Array<Dictionary>, expected as Array<Symbol or Null>) as Boolean {
+    var armed = {};
+    for (var i = 0; i < TRIGGER_ORDER.size(); i += 1) {
+        armed[TRIGGER_ORDER[i]] = true;
+    }
+    var ok = true;
+    for (var tick = 0; tick < actives.size(); tick += 1) {
+        var fired = stepTriggers(TRIGGER_ORDER, TRIGGER_TRICKS, armed, actives[tick]);
+        if (fired != expected[tick]) {
+            logger.debug("tick " + tick + " expected=" + expected[tick] + " got=" + fired);
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+(:test)
+function testTriggerFiresOncePerEvent(logger as Test.Logger) as Boolean {
+    var actives = [
+        activeTriggers([]),
+        activeTriggers([:moveAlert]),
+        activeTriggers([:moveAlert]),
+        activeTriggers([]),
+        activeTriggers([:moveAlert]),
+    ];
+    return checkTriggerSequence(logger, actives, [null, :moveAlert, null, null, :moveAlert]);
+}
+
+(:test)
+function testBatteryTiersFireOnDescentAndRearmAfterCharging(logger as Test.Logger) as Boolean {
+    var actives = [
+        batteryTriggers(25),
+        batteryTriggers(20),
+        batteryTriggers(15),
+        batteryTriggers(10),
+        batteryTriggers(15),
+        batteryTriggers(10),
+    ];
+    return checkTriggerSequence(logger, actives, [null, :lowBattery, null, :criticalBattery, null, :criticalBattery]);
+}
+
+(:test)
+function testSameTrickTriggersPlayOnce(logger as Test.Logger) as Boolean {
+    var actives = [batteryTriggers(10), batteryTriggers(10)];
+    return checkTriggerSequence(logger, actives, [:criticalBattery, null]);
+}
+
+(:test)
+function testSimultaneousTriggersQueue(logger as Test.Logger) as Boolean {
+    var both = [:moveAlert, :highStress];
+    var actives = [activeTriggers(both), activeTriggers(both), activeTriggers(both)];
+    return checkTriggerSequence(logger, actives, [:moveAlert, :highStress, null]);
+}
+
 (:test)
 function testFieldCacheNeedsRefresh(logger as Test.Logger) as Boolean {
     var cases = [

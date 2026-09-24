@@ -111,6 +111,8 @@ One thing surfaced worth knowing: `vivoactive6` (and several of the newer additi
 
 **Post-review fix:** settings and field values are cached (`refreshFieldCache()`) instead of re-read on every redraw. The cache refreshes once a minute, on `onShow()`, on `onExitSleep()` (wrist raise), and on settings change. Stress is only read until the stress trick has fired.
 
+**Post-review fix:** conditional triggers now re-arm when their condition clears (`stepTriggers()`), instead of firing once per `onShow()`, so each real event plays once. Stress moved into the once-a-minute cache.
+
 
 ---
 
