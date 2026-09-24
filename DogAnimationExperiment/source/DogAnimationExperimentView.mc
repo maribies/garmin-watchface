@@ -99,10 +99,16 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mCachedDateString as String or Null = null;
     private var mCachedDateHour as Number or Null = null;
 
-    // Refreshed once per drawFields() call, read by multiple value-provider
+    // Refreshed by refreshFieldCache(), read by multiple value-provider
     // methods so they don't each fetch the same data independently.
     private var mCurrentActivityInfo as ActivityMonitor.Info or Null = null;
     private var mCurrentDeviceSettings as System.DeviceSettings or Null = null;
+
+    private var mFieldCacheMinute as Number or Null = null;
+    private var mBackgroundColor as Number = 0;
+    private var mUseMilitaryFormat as Boolean = true;
+    // Indexed like mFieldDefs: {:position, :icon, :iconWidth, :text}, or null if not shown.
+    private var mFieldRender as Array<Dictionary or Null> or Null = null;
 
     function initialize() {
         WatchFace.initialize();
@@ -146,11 +152,55 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         mCriticalBatteryTrickShown = false;
         mMoveAlertTrickShown = false;
         mHighStressTrickShown = false;
+        invalidateFieldCache();
         enterIdle();
     }
 
+    function invalidateFieldCache() as Void {
+        mFieldCacheMinute = null;
+    }
+
+    private function refreshFieldCache(minute as Number) as Void {
+        mBackgroundColor = Properties.getValue("BackgroundColor") as Number;
+        mUseMilitaryFormat = Properties.getValue("UseMilitaryFormat") as Boolean;
+        mCurrentActivityInfo = ActivityMonitor.getInfo();
+        mCurrentDeviceSettings = System.getDeviceSettings();
+
+        var enabled = new [mFieldDefs.size()];
+        for (var i = 0; i < mFieldDefs.size(); i += 1) {
+            enabled[i] = Properties.getValue(mFieldDefs[i][:propertyKey]) as Boolean;
+        }
+        var positions = assignFieldPositions(enabled);
+
+        mFieldRender = new [mFieldDefs.size()];
+        for (var i = 0; i < mFieldDefs.size(); i += 1) {
+            if (positions[i] == null) {
+                continue;
+            }
+            var def = mFieldDefs[i];
+            var icon = def[:icon];
+            var iconWidth = def[:iconWidth];
+            var text;
+            if (i == FIELD_INDEX_WEATHER) {
+                var conditions = currentWeatherConditions();
+                var weatherCondition = null;
+                if (conditions != null) {
+                    weatherCondition = conditions.condition;
+                }
+                var weatherIcon = mWeatherIcons[weatherIconKey(weatherCondition)];
+                icon = weatherIcon[:icon];
+                iconWidth = weatherIcon[:width];
+                text = weatherValueText(conditions);
+            } else {
+                text = def[:valueFn].invoke() as String;
+            }
+            mFieldRender[i] = { :position => positions[i], :icon => icon, :iconWidth => iconWidth, :text => text };
+        }
+        mFieldCacheMinute = minute;
+    }
+
     private function needsBurnInSafeFace() as Boolean {
-        return System.getDeviceSettings().requiresBurnInProtection
+        return mCurrentDeviceSettings.requiresBurnInProtection
             && (System has :getDisplayMode)
             && System.getDisplayMode() != System.DISPLAY_MODE_HIGH_POWER;
     }
@@ -214,7 +264,6 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     function onAnimTimer() as Void {
         if (mState == STATE_IDLE) {
             var battery = System.getSystemStats().battery.toNumber();
-            var stressLevel = currentStressLevel();
             if (!mCriticalBatteryTrickShown && isLowBattery(battery, CRITICAL_BATTERY_THRESHOLD_PERCENT)) {
                 mLowBatteryTrickShown = true;
                 mCriticalBatteryTrickShown = true;
@@ -225,7 +274,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             } else if (!mMoveAlertTrickShown && isMoveBarMax(ActivityMonitor.getInfo().moveBarLevel, ActivityMonitor.MOVE_BAR_LEVEL_MAX)) {
                 mMoveAlertTrickShown = true;
                 startTrick(:moveAlert);
-            } else if (!mHighStressTrickShown && stressLevel != null && isHighStress(stressLevel, HIGH_STRESS_THRESHOLD)) {
+            } else if (!mHighStressTrickShown && isStressHighNow()) {
                 mHighStressTrickShown = true;
                 startTrick(:lick);
             } else {
@@ -297,21 +346,23 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var cy = height / 2;
         var pad = 10;
 
-        // Background — user-configurable via Settings (Properties.BackgroundColor).
-        var backgroundColor = Properties.getValue("BackgroundColor") as Number;
+        var minute = System.getClockTime().min;
+        if (fieldCacheNeedsRefresh(mFieldCacheMinute, minute)) {
+            refreshFieldCache(minute);
+        }
 
         if (needsBurnInSafeFace()) {
             dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
             dc.clear();
-            drawTimeDate(dc, cx, height, pad, backgroundColor, darkerTint(backgroundColor));
+            drawTimeDate(dc, cx, height, pad, mBackgroundColor, darkerTint(mBackgroundColor));
             return;
         }
 
-        dc.setColor(backgroundColor, backgroundColor);
+        dc.setColor(mBackgroundColor, mBackgroundColor);
         dc.clear();
 
         // Subtext tints to match the background instead of a fixed gray.
-        var subtextColor = darkerTint(backgroundColor);
+        var subtextColor = darkerTint(mBackgroundColor);
 
         // Battery — icon, top center.
         drawBattery(dc, cx, pad);
@@ -360,26 +411,12 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         }
     }
 
-    // Draws up to 6 of the 9 configurable fields: two columns anchored to
-    // the watch's round edge (chordHalfWidthAt), growing inward; up to
-    // three rows stacked above the time block. Position comes from
-    // assignFieldPositions, filling bottom-left/right, middle-left/right,
-    // top-left/right in that order. Nothing clips against the dog sprite,
-    // so a wide value can overlap it.
+    // Draws up to 6 of the 9 configurable fields from mFieldRender: two
+    // columns anchored to the watch's round edge (chordHalfWidthAt), growing
+    // inward; up to three rows stacked above the time block, filling
+    // bottom-left/right, middle-left/right, top-left/right in that order.
+    // Nothing clips against the dog sprite, so a wide value can overlap it.
     private function drawFields(dc as Dc, cx as Number, cy as Number, height as Number, pad as Number, subtextColor as Number) as Void {
-        // Fetched once per frame and read by the value-provider methods
-        // below, rather than each of them calling these independently —
-        // up to 5 fields share mCurrentActivityInfo, up to 3 share
-        // mCurrentDeviceSettings.
-        mCurrentActivityInfo = ActivityMonitor.getInfo();
-        mCurrentDeviceSettings = System.getDeviceSettings();
-
-        var enabled = new [mFieldDefs.size()];
-        for (var i = 0; i < mFieldDefs.size(); i += 1) {
-            enabled[i] = Properties.getValue(mFieldDefs[i][:propertyKey]) as Boolean;
-        }
-        var positions = assignFieldPositions(enabled);
-
         var textHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_XTINY);
         var scaledIconHeight = (FIELD_ICON_HEIGHT * FIELD_ICON_SCALE).toNumber();
         var stackedRowHeight = scaledIconHeight + FIELD_ICON_TEXT_GAP + textHeight;
@@ -407,28 +444,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             { :edgeX => cx + topHalfWidth - FIELD_EDGE_MARGIN, :alignToRightEdge => true, :rowY => topRowY },
         ];
 
-        for (var i = 0; i < enabled.size(); i += 1) {
-            var positionIndex = positions[i];
-            if (positionIndex != null) {
-                var coords = positionCoords[positionIndex];
-                var def = mFieldDefs[i];
-                var icon = def[:icon];
-                var iconWidth = def[:iconWidth];
-                var valueText;
-                if (i == FIELD_INDEX_WEATHER) {
-                    var conditions = currentWeatherConditions();
-                    var weatherCondition = null;
-                    if (conditions != null) {
-                        weatherCondition = conditions.condition;
-                    }
-                    var weatherIcon = mWeatherIcons[weatherIconKey(weatherCondition)];
-                    icon = weatherIcon[:icon];
-                    iconWidth = weatherIcon[:width];
-                    valueText = weatherValueText(conditions);
-                } else {
-                    valueText = def[:valueFn].invoke() as String;
-                }
-                drawField(dc, coords[:edgeX], coords[:alignToRightEdge], coords[:rowY], icon, iconWidth, valueText, subtextColor);
+        for (var i = 0; i < mFieldRender.size(); i += 1) {
+            var field = mFieldRender[i];
+            if (field != null) {
+                var coords = positionCoords[field[:position]];
+                drawField(dc, coords[:edgeX], coords[:alignToRightEdge], coords[:rowY], field[:icon], field[:iconWidth], field[:text], subtextColor);
             }
         }
     }
@@ -505,6 +525,11 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         return formatFieldValue(level, "");
     }
 
+    private function isStressHighNow() as Boolean {
+        var level = currentStressLevel();
+        return level != null && isHighStress(level, HIGH_STRESS_THRESHOLD);
+    }
+
     private function currentStressLevel() as Number or Null {
         if (!(Toybox has :SensorHistory) || !(Toybox.SensorHistory has :getStressHistory)) {
             return null;
@@ -563,8 +588,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
         var clockTime = System.getClockTime();
         var hours = clockTime.hour;
-        var useMilitaryFormat = Properties.getValue("UseMilitaryFormat") as Boolean;
-        if (!useMilitaryFormat) {
+        if (!mUseMilitaryFormat) {
             if (hours == 0) {
                 hours = 12;
             } else if (hours > 12) {
@@ -596,9 +620,12 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         mWeatherIcons = null;
         mBatteryIcons = null;
         mTricks = null;
+        mFieldRender = null;
+        invalidateFieldCache();
     }
 
     function onExitSleep() as Void {
+        invalidateFieldCache();
         enterIdle();
     }
 

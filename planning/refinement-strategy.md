@@ -109,6 +109,8 @@ One thing surfaced worth knowing: `vivoactive6` (and several of the newer additi
 
 **Post-review fix:** 27 of the 43 devices are AMOLED. Per the SDK's AMOLED FAQ, a sleeping face over 10% screen luminance gets the screen shut off, which the full-color background always exceeded. On burn-in-protected devices outside high-power display mode, `onUpdate()` now draws a black face with time in the user's background color and date in its `darkerTint()`, stationary (the no-pixel-on-over-3-minutes rule only applied to the original Venu; every AMOLED device here is Venu 2 or newer, where only the 10% luminance rule applies). Simulator heat map on venu3: 0.87% luminance, no burn-in.
 
+**Post-review fix:** settings and field values are cached (`refreshFieldCache()`) instead of re-read on every redraw. The cache refreshes once a minute, on `onShow()`, on `onExitSleep()` (wrist raise), and on settings change. Stress is only read until the stress trick has fired.
+
 
 ---
 

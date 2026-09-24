@@ -27,6 +27,7 @@ class DogAnimationExperimentApp extends Application.AppBase {
     // New app settings have been received so trigger a UI update
     function onSettingsChanged() as Void {
         if (mView != null) {
+            mView.invalidateFieldCache();
             mView.reloadBreed();
         }
         WatchUi.requestUpdate();

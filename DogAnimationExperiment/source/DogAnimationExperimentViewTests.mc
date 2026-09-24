@@ -343,6 +343,26 @@ function testIsHighStressAtThreshold(logger as Test.Logger) as Boolean {
 }
 
 (:test)
+function testFieldCacheNeedsRefresh(logger as Test.Logger) as Boolean {
+    var cases = [
+        // [cachedMinute, currentMinute, expected]
+        [null, 5, true],
+        [5, 5, false],
+        [5, 6, true],
+        [59, 0, true],
+    ];
+    var ok = true;
+    for (var i = 0; i < cases.size(); i += 1) {
+        var got = fieldCacheNeedsRefresh(cases[i][0], cases[i][1]);
+        if (got != cases[i][2]) {
+            logger.debug("cached=" + cases[i][0] + " current=" + cases[i][1] + " expected=" + cases[i][2] + " got=" + got);
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+(:test)
 function testFrameOrderAdvances(logger as Test.Logger) as Boolean {
     // FRAME_ORDER = [0,1,0,2]; starting at index 0 (rest), 5 ticks should
     // walk one full cycle and one step into the next: 1,0,2,0,1.

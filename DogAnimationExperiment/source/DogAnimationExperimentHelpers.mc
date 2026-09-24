@@ -9,6 +9,11 @@ import Toybox.Weather;
 // 2 columns) — see assignFieldPositions.
 const MAX_VISIBLE_FIELDS = 6;
 
+// Null cachedMinute means the cache was invalidated.
+function fieldCacheNeedsRefresh(cachedMinute as Number or Null, currentMinute as Number) as Boolean {
+    return cachedMinute == null || cachedMinute != currentMinute;
+}
+
 function advanceOrderIndex(current as Number) as Number {
     return (current + 1) % FRAME_ORDER.size();
 }
