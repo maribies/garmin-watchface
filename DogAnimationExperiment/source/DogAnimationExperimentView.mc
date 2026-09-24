@@ -99,6 +99,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mTicksUntilTrick = MIN_TRICK_DELAY_TICKS;
     // Keyed by TRIGGER_ORDER; see stepTriggers.
     private var mTriggerArmed as Dictionary<Symbol, Boolean> = {};
+    private var mIsAsleep = false;
 
     // Cached formatted date string, recomputed only when the hour changes
     // (see drawTimeDate).
@@ -159,7 +160,24 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             WatchUi.loadResource(Rez.Drawables.IconBatteryEmpty),
         ];
         invalidateFieldCache();
-        enterIdle();
+        if (isLowPower()) {
+            resetToRestPose();
+        } else {
+            enterIdle();
+        }
+    }
+
+    private function isLowPower() as Boolean {
+        var displayMode = null;
+        if (System has :getDisplayMode) {
+            displayMode = System.getDisplayMode();
+        }
+        return isLowPowerMode(displayMode, mIsAsleep);
+    }
+
+    private function resetToRestPose() as Void {
+        mState = STATE_IDLE;
+        mOrderIndex = 0;
     }
 
     function invalidateFieldCache() as Void {
@@ -207,9 +225,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     private function needsBurnInSafeFace() as Boolean {
-        return mCurrentDeviceSettings.requiresBurnInProtection
-            && (System has :getDisplayMode)
-            && System.getDisplayMode() != System.DISPLAY_MODE_HIGH_POWER;
+        return mCurrentDeviceSettings.requiresBurnInProtection && isLowPower();
     }
 
     // Loads mStandingBitmap/mTricks/mRandomTrickKeys for the current
@@ -627,16 +643,17 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     }
 
     function onExitSleep() as Void {
+        mIsAsleep = false;
         invalidateFieldCache();
         enterIdle();
     }
 
     function onEnterSleep() as Void {
+        mIsAsleep = true;
         if (mAnimTimer != null) {
             mAnimTimer.stop();
         }
-        mState = STATE_IDLE;
-        mOrderIndex = 0;
+        resetToRestPose();
     }
 
 }

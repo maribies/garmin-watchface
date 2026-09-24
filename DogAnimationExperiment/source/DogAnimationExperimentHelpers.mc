@@ -1,6 +1,7 @@
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.Math;
+import Toybox.System;
 import Toybox.Weather;
 
 // Pure, stateless helpers for DogAnimationExperimentView.mc.
@@ -8,6 +9,15 @@ import Toybox.Weather;
 // Of the 9 candidate fields, at most this many are shown at once (3 rows x
 // 2 columns) — see assignFieldPositions.
 const MAX_VISIBLE_FIELDS = 6;
+
+// displayMode is null on devices without System.getDisplayMode() (MIP),
+// which fall back to the onEnterSleep()/onExitSleep() flag.
+function isLowPowerMode(displayMode as Number or Null, asleep as Boolean) as Boolean {
+    if (displayMode != null) {
+        return displayMode != System.DISPLAY_MODE_HIGH_POWER;
+    }
+    return asleep;
+}
 
 // Null cachedMinute means the cache was invalidated.
 function fieldCacheNeedsRefresh(cachedMinute as Number or Null, currentMinute as Number) as Boolean {

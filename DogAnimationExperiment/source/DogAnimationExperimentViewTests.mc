@@ -1,5 +1,6 @@
 import Toybox.Lang;
 import Toybox.Math;
+import Toybox.System;
 import Toybox.Test;
 import Toybox.WatchUi;
 import Toybox.Weather;
@@ -336,6 +337,27 @@ function testIsHighStressAtThreshold(logger as Test.Logger) as Boolean {
         var got = isHighStress(level, threshold);
         if (got != expected) {
             logger.debug("level=" + level + " threshold=" + threshold + " expected=" + expected + " got=" + got);
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+(:test)
+function testIsLowPowerModePrefersDisplayModeOverSleepFlag(logger as Test.Logger) as Boolean {
+    var cases = [
+        // [displayMode, asleep, expected]
+        [System.DISPLAY_MODE_HIGH_POWER, true, false],
+        [System.DISPLAY_MODE_LOW_POWER, false, true],
+        [System.DISPLAY_MODE_OFF, false, true],
+        [null, true, true],
+        [null, false, false],
+    ];
+    var ok = true;
+    for (var i = 0; i < cases.size(); i += 1) {
+        var got = isLowPowerMode(cases[i][0], cases[i][1]);
+        if (got != cases[i][2]) {
+            logger.debug("case " + i + " expected=" + cases[i][2] + " got=" + got);
             ok = false;
         }
     }

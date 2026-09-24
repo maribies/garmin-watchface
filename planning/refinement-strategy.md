@@ -113,6 +113,8 @@ One thing surfaced worth knowing: `vivoactive6` (and several of the newer additi
 
 **Post-review fix:** conditional triggers now re-arm when their condition clears (`stepTriggers()`), instead of firing once per `onShow()`, so each real event plays once. Stress moved into the once-a-minute cache.
 
+**Post-review fix:** `onShow()` no longer starts the animation timer in low-power mode (`Timer.start()` crashes a watch face there); `onExitSleep()` starts it on wake. Low power comes from `System.getDisplayMode()` where available (AMOLED), else a sleep flag (`isLowPowerMode()`).
+
 
 ---
 
