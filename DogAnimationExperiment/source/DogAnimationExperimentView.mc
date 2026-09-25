@@ -12,9 +12,6 @@ import Toybox.Timer;
 import Toybox.WatchUi;
 import Toybox.Weather;
 
-// All dog sprite sheets use 120x120 frames.
-const FRAME_SIZE = 120;
-
 // Standing idle play order: rest, bob-down, rest, blink-closed (see planning/sprite-recipe.md)
 const FRAME_ORDER = [0, 1, 0, 2];
 const IDLE_TICK_MS = 400;
@@ -46,14 +43,9 @@ const DOG_BREED_AUSSIE = 1;
 // into mTricks).
 const STATE_IDLE = null;
 
-// Icon sizes as registered in drawables.xml (aspect-correct, ~20px tall).
-const BATTERY_ICON_WIDTH = 25;
-
-// Index into mFieldDefs. Weather's icon/width come from mWeatherIcons
+// Index into mFieldDefs. Weather's icon comes from mWeatherIcons
 // instead — see drawFields.
 const FIELD_INDEX_WEATHER = 2;
-
-const FIELD_ICON_HEIGHT = 20;
 
 // Icons draw smaller than native size so they read as a subordinate accent
 // next to the value.
@@ -71,19 +63,20 @@ const FIELD_EDGE_MARGIN = 8;
 class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     private var mStandingBitmap = null;
+    // Frames are square and one sheet-height wide; set per breed load.
+    private var mFrameSize = 0;
     private var mBatteryIcons as Array or Null = null; // [full, threeQuarters, half, quarter, empty]
 
     // The 9 configurable fields, in fixed evaluation order: steps, heart
     // rate, weather, body battery, calories, notifications, floors climbed,
     // intensity minutes, distance. Each entry: {:propertyKey, :icon,
-    // :iconWidth, :valueFn}. Weather's :icon/:iconWidth are unused
-    // (condition-dependent, see mWeatherIcons) and it has no :valueFn
-    // (special-cased in drawFields since its value needs CurrentConditions).
+    // :valueFn}. Weather's :icon is unused (condition-dependent, see
+    // mWeatherIcons) and it has no :valueFn (special-cased in
+    // refreshFieldCache since its value needs CurrentConditions).
     private var mFieldDefs as Array<Dictionary> or Null = null;
 
-    // Weather icon variants, keyed by weatherIconKey()'s result. Each entry
-    // is {:icon, :width} since the icons aren't all the same width.
-    private var mWeatherIcons as Dictionary<Symbol, Dictionary> or Null = null;
+    // Weather icon variants, keyed by weatherIconKey()'s result.
+    private var mWeatherIcons as Dictionary or Null = null;
 
     // Each trick is an Array of clips ({:bitmap, :startFrame, :frameCount,
     // :tickMs, :repeat}), played in order, keyed by name. mRandomTrickKeys
@@ -115,7 +108,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     private var mFieldCacheMinute as Number or Null = null;
     private var mBackgroundColor as Number = 0;
     private var mUseMilitaryFormat as Boolean = true;
-    // Indexed like mFieldDefs: {:position, :icon, :iconWidth, :text}, or null if not shown.
+    // Indexed like mFieldDefs: {:position, :icon, :text}, or null if not shown.
     private var mFieldRender as Array<Dictionary or Null> or Null = null;
 
     function initialize() {
@@ -134,24 +127,24 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     function onShow() as Void {
         loadBreedResources();
         mFieldDefs = [
-            { :propertyKey => "ShowSteps", :icon => WatchUi.loadResource(Rez.Drawables.IconShoePrints), :iconWidth => 23, :valueFn => method(:stepsValue) },
-            { :propertyKey => "ShowHeartRate", :icon => WatchUi.loadResource(Rez.Drawables.IconHeart), :iconWidth => 20, :valueFn => method(:heartRateValue) },
-            { :propertyKey => "ShowWeather", :icon => null, :iconWidth => 0, :valueFn => null },
-            { :propertyKey => "ShowBodyBattery", :icon => WatchUi.loadResource(Rez.Drawables.IconGauge), :iconWidth => 20, :valueFn => method(:bodyBatteryValue) },
-            { :propertyKey => "ShowCalories", :icon => WatchUi.loadResource(Rez.Drawables.IconFire), :iconWidth => 18, :valueFn => method(:caloriesValue) },
-            { :propertyKey => "ShowNotifications", :icon => WatchUi.loadResource(Rez.Drawables.IconMessage), :iconWidth => 20, :valueFn => method(:notificationsValue) },
-            { :propertyKey => "ShowFloors", :icon => WatchUi.loadResource(Rez.Drawables.IconStairs), :iconWidth => 23, :valueFn => method(:floorsValue) },
-            { :propertyKey => "ShowIntensityMinutes", :icon => WatchUi.loadResource(Rez.Drawables.IconStopwatch), :iconWidth => 18, :valueFn => method(:intensityMinutesValue) },
-            { :propertyKey => "ShowDistance", :icon => WatchUi.loadResource(Rez.Drawables.IconPersonRunning), :iconWidth => 18, :valueFn => method(:distanceValue) },
+            { :propertyKey => "ShowSteps", :icon => WatchUi.loadResource(Rez.Drawables.IconShoePrints), :valueFn => method(:stepsValue) },
+            { :propertyKey => "ShowHeartRate", :icon => WatchUi.loadResource(Rez.Drawables.IconHeart), :valueFn => method(:heartRateValue) },
+            { :propertyKey => "ShowWeather", :icon => null, :valueFn => null },
+            { :propertyKey => "ShowBodyBattery", :icon => WatchUi.loadResource(Rez.Drawables.IconGauge), :valueFn => method(:bodyBatteryValue) },
+            { :propertyKey => "ShowCalories", :icon => WatchUi.loadResource(Rez.Drawables.IconFire), :valueFn => method(:caloriesValue) },
+            { :propertyKey => "ShowNotifications", :icon => WatchUi.loadResource(Rez.Drawables.IconMessage), :valueFn => method(:notificationsValue) },
+            { :propertyKey => "ShowFloors", :icon => WatchUi.loadResource(Rez.Drawables.IconStairs), :valueFn => method(:floorsValue) },
+            { :propertyKey => "ShowIntensityMinutes", :icon => WatchUi.loadResource(Rez.Drawables.IconStopwatch), :valueFn => method(:intensityMinutesValue) },
+            { :propertyKey => "ShowDistance", :icon => WatchUi.loadResource(Rez.Drawables.IconPersonRunning), :valueFn => method(:distanceValue) },
         ];
         mWeatherIcons = {
-            :sun => { :icon => WatchUi.loadResource(Rez.Drawables.IconSun), :width => 23 },
-            :cloudSun => { :icon => WatchUi.loadResource(Rez.Drawables.IconCloudSun), :width => 25 },
-            :cloud => { :icon => WatchUi.loadResource(Rez.Drawables.IconCloud), :width => 23 },
-            :cloudRain => { :icon => WatchUi.loadResource(Rez.Drawables.IconCloudRain), :width => 20 },
-            :cloudBolt => { :icon => WatchUi.loadResource(Rez.Drawables.IconCloudBolt), :width => 20 },
-            :snowflake => { :icon => WatchUi.loadResource(Rez.Drawables.IconSnowflake), :width => 20 },
-            :thermometer => { :icon => WatchUi.loadResource(Rez.Drawables.IconTemperatureHalf), :width => 13 },
+            :sun => WatchUi.loadResource(Rez.Drawables.IconSun),
+            :cloudSun => WatchUi.loadResource(Rez.Drawables.IconCloudSun),
+            :cloud => WatchUi.loadResource(Rez.Drawables.IconCloud),
+            :cloudRain => WatchUi.loadResource(Rez.Drawables.IconCloudRain),
+            :cloudBolt => WatchUi.loadResource(Rez.Drawables.IconCloudBolt),
+            :snowflake => WatchUi.loadResource(Rez.Drawables.IconSnowflake),
+            :thermometer => WatchUi.loadResource(Rez.Drawables.IconTemperatureHalf),
         };
         mBatteryIcons = [
             WatchUi.loadResource(Rez.Drawables.IconBatteryFull),
@@ -205,7 +198,6 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             }
             var def = mFieldDefs[i];
             var icon = def[:icon];
-            var iconWidth = def[:iconWidth];
             var text;
             if (i == FIELD_INDEX_WEATHER) {
                 var conditions = currentWeatherConditions();
@@ -213,14 +205,12 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
                 if (conditions != null) {
                     weatherCondition = conditions.condition;
                 }
-                var weatherIcon = mWeatherIcons[weatherIconKey(weatherCondition)];
-                icon = weatherIcon[:icon];
-                iconWidth = weatherIcon[:width];
+                icon = mWeatherIcons[weatherIconKey(weatherCondition)];
                 text = weatherValueText(conditions);
             } else {
                 text = def[:valueFn].invoke() as String;
             }
-            mFieldRender[i] = { :position => positions[i], :icon => icon, :iconWidth => iconWidth, :text => text };
+            mFieldRender[i] = { :position => positions[i], :icon => icon, :text => text };
         }
         mFieldCacheMinute = minute;
     }
@@ -248,6 +238,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         }
 
         mStandingBitmap = WatchUi.loadResource(standingRes);
+        mFrameSize = (mStandingBitmap as WatchUi.BitmapResource).getHeight();
         var lickingBitmap = WatchUi.loadResource(lickingRes);
         var tailSpinBitmap = WatchUi.loadResource(tailSpinRes);
         var footTapsBitmap = WatchUi.loadResource(footTapsRes);
@@ -410,7 +401,8 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var battery = stats.battery.toNumber();
         var batteryIcon = mBatteryIcons[pickBatteryIconIndex(battery)];
         if (batteryIcon != null) {
-            dc.drawBitmap(cx - (BATTERY_ICON_WIDTH / 2), y, batteryIcon as WatchUi.BitmapResource);
+            var icon = batteryIcon as WatchUi.BitmapResource;
+            dc.drawBitmap(cx - (icon.getWidth() / 2), y, icon);
         }
     }
 
@@ -427,23 +419,23 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
             frameToDraw = (clip[:startFrame] as Number) + mClipFrame;
         }
 
-        var dogX = cx - (FRAME_SIZE / 2);
-        var dogY = cy - (FRAME_SIZE / 2) - 10;
+        var dogX = cx - (mFrameSize / 2);
+        var dogY = cy - (mFrameSize / 2) - 10;
         if (dogBitmap != null) {
-            dc.setClip(dogX, dogY, FRAME_SIZE, FRAME_SIZE);
-            dc.drawBitmap(dogX - (frameToDraw * FRAME_SIZE), dogY, dogBitmap as WatchUi.BitmapResource);
+            dc.setClip(dogX, dogY, mFrameSize, mFrameSize);
+            dc.drawBitmap(dogX - (frameToDraw * mFrameSize), dogY, dogBitmap as WatchUi.BitmapResource);
             dc.clearClip();
         }
     }
 
     // Draws up to 6 of the 9 configurable fields from mFieldRender: two
-    // columns anchored to the watch's round edge (chordHalfWidthAt), growing
-    // inward; up to three rows stacked above the time block, filling
-    // bottom-left/right, middle-left/right, top-left/right in that order.
-    // Nothing clips against the dog sprite, so a wide value can overlap it.
+    // columns hugging the watch's round edge, growing inward; up to three
+    // rows stacked above the time block, filling bottom-left/right,
+    // middle-left/right, top-left/right in that order. Nothing clips against
+    // the dog sprite, so a wide value can overlap it.
     private function drawFields(dc as Dc, cx as Number, cy as Number, height as Number, pad as Number, subtextColor as Number) as Void {
         var textHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_XTINY);
-        var scaledIconHeight = (FIELD_ICON_HEIGHT * FIELD_ICON_SCALE).toNumber();
+        var scaledIconHeight = ((mFieldDefs[0][:icon] as WatchUi.BitmapResource).getHeight() * FIELD_ICON_SCALE).toNumber();
         var stackedRowHeight = scaledIconHeight + FIELD_ICON_TEXT_GAP + textHeight;
 
         var bottomGap = 4; // breathing room from the time block below
@@ -452,52 +444,50 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var middleRowY = bottomRowY - rowPadding - stackedRowHeight;
         var topRowY = middleRowY - rowPadding - stackedRowHeight;
 
-        // Sampled at each row's vertical center.
-        var bottomHalfWidth = chordHalfWidthAt(bottomRowY + (stackedRowHeight / 2), cx, cy);
-        var middleHalfWidth = chordHalfWidthAt(middleRowY + (stackedRowHeight / 2), cx, cy);
-        var topHalfWidth = chordHalfWidthAt(topRowY + (stackedRowHeight / 2), cx, cy);
-
         // Index order: bottom-left, bottom-right, middle-left, middle-right,
         // top-left, top-right. alignToRightEdge false = grows rightward
         // from the edge; true = grows leftward.
         var positionCoords = [
-            { :edgeX => cx - bottomHalfWidth + FIELD_EDGE_MARGIN, :alignToRightEdge => false, :rowY => bottomRowY },
-            { :edgeX => cx + bottomHalfWidth - FIELD_EDGE_MARGIN, :alignToRightEdge => true, :rowY => bottomRowY },
-            { :edgeX => cx - middleHalfWidth + FIELD_EDGE_MARGIN, :alignToRightEdge => false, :rowY => middleRowY },
-            { :edgeX => cx + middleHalfWidth - FIELD_EDGE_MARGIN, :alignToRightEdge => true, :rowY => middleRowY },
-            { :edgeX => cx - topHalfWidth + FIELD_EDGE_MARGIN, :alignToRightEdge => false, :rowY => topRowY },
-            { :edgeX => cx + topHalfWidth - FIELD_EDGE_MARGIN, :alignToRightEdge => true, :rowY => topRowY },
+            { :alignToRightEdge => false, :rowY => bottomRowY },
+            { :alignToRightEdge => true, :rowY => bottomRowY },
+            { :alignToRightEdge => false, :rowY => middleRowY },
+            { :alignToRightEdge => true, :rowY => middleRowY },
+            { :alignToRightEdge => false, :rowY => topRowY },
+            { :alignToRightEdge => true, :rowY => topRowY },
         ];
 
         for (var i = 0; i < mFieldRender.size(); i += 1) {
             var field = mFieldRender[i];
             if (field != null) {
                 var coords = positionCoords[field[:position]];
-                drawField(dc, coords[:edgeX], coords[:alignToRightEdge], coords[:rowY], field[:icon], field[:iconWidth], field[:text], subtextColor);
+                drawField(dc, cx, cy, coords[:alignToRightEdge], coords[:rowY], field[:icon] as WatchUi.BitmapResource, field[:text], subtextColor);
             }
         }
     }
 
-    // One field: icon above value, stacked tightly, both anchored to edgeX
-    // (icon and value are each their own width, not centered on each other).
-    private function drawField(dc as Dc, edgeX as Number, alignToRightEdge as Boolean, rowY as Number, icon as Object or Null, iconWidth as Number, valueText as String, subtextColor as Number) as Void {
+    // One field: icon above value, stacked tightly. Icon and value each sit
+    // as close to the round edge as their own rows allow, so they follow the
+    // curve rather than sharing one anchor.
+    private function drawField(dc as Dc, cx as Number, cy as Number, alignToRightEdge as Boolean, rowY as Number, icon as WatchUi.BitmapResource, valueText as String, subtextColor as Number) as Void {
         var font = Graphics.FONT_SYSTEM_XTINY;
         var textWidth = dc.getTextWidthInPixels(valueText, font);
-        var scaledIconWidth = (iconWidth * FIELD_ICON_SCALE).toNumber();
-        var scaledIconHeight = (FIELD_ICON_HEIGHT * FIELD_ICON_SCALE).toNumber();
+        var textHeight = Graphics.getFontHeight(font);
+        var scaledIconWidth = (icon.getWidth() * FIELD_ICON_SCALE).toNumber();
+        var scaledIconHeight = (icon.getHeight() * FIELD_ICON_SCALE).toNumber();
 
-        var iconX = edgeX;
-        var textX = edgeX;
-        if (alignToRightEdge) {
-            iconX = edgeX - scaledIconWidth;
-            textX = edgeX - textWidth;
-        }
         var iconY = rowY;
         var textY = rowY + scaledIconHeight + FIELD_ICON_TEXT_GAP;
+        var iconHalfWidth = rowHalfWidth(iconY, scaledIconHeight, cx, cy) - FIELD_EDGE_MARGIN;
+        var textHalfWidth = rowHalfWidth(textY, textHeight, cx, cy) - FIELD_EDGE_MARGIN;
 
-        if (icon != null) {
-            dc.drawScaledBitmap(iconX, iconY, scaledIconWidth, scaledIconHeight, icon as WatchUi.BitmapResource);
+        var iconX = cx - iconHalfWidth;
+        var textX = cx - textHalfWidth;
+        if (alignToRightEdge) {
+            iconX = cx + iconHalfWidth - scaledIconWidth;
+            textX = cx + textHalfWidth - textWidth;
         }
+
+        dc.drawScaledBitmap(iconX, iconY, scaledIconWidth, scaledIconHeight, icon);
         dc.setColor(subtextColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(textX, textY, font, valueText, Graphics.TEXT_JUSTIFY_LEFT);
     }

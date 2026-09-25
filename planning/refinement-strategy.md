@@ -117,6 +117,8 @@ One thing surfaced worth knowing: `vivoactive6` (and several of the newer additi
 
 **Package size:** sprite sheets now use `compress="true"`, so every device's package is 218–225KB (was up to 1.46MB on MIP devices, which stored sprites uncompressed at 8 bits/pixel). Runtime memory is unchanged; the load-time cost of decompressing in `onShow()` still needs checking on a physical device.
 
+**Large screens:** `monkey.jungle` maps 360/390/416 screens to `resources-large-150` and 454 to `resources-large-200`, which override the sprites (1.5× / 2×, with a per-breed `<palette>` since compile-time scaling otherwise smooths the pixel art into extra colors) and re-rasterize the icons (33px / 37px) to match the larger field text. Frame and icon sizes are now read from the loaded bitmaps instead of constants. Packages: ~325KB at 1.5×, ~353KB at 2×; MIP unchanged.
+
 **Post-review cleanup:** `Math.rand()` now seeded in `initialize()`; date cache cleared in `onHide()`; unused `layout.xml`, `Background.mc` and `getApp()` removed; stale corgi-only and sit/stand comments updated.
 
 

@@ -41,6 +41,20 @@ A recipe for creating the pixel art has been documented and is continuously upda
 ## Icons
 UI icons (steps, battery, etc.) are sourced from [Font Awesome Free](https://fontawesome.com/) — icons are CC BY 4.0, fonts are SIL OFL 1.1, code is MIT. All three require attribution. See the "Before publishing" note in [refinement-strategy.md](planning/refinement-strategy.md) for what that means for this app specifically (a compiled `.prg` doesn't carry forward the source file's embedded license comments the way a served web asset would).
 
+## Large-screen resources
+The dog and the field icons are scaled up at build time on the larger (360–454px) screens. `monkey.jungle` maps each screen size to a generated override folder:
+
+| Folder | Screens | Sprites | Field icons |
+|---|---|---|---|
+| `resources-large-150` | 360, 390, 416 | 1.5× | 33px tall |
+| `resources-large-200` | 454 | 2× | 37px tall |
+
+Both folders are **generated** from `resources/drawables/drawables.xml` by `scripts/generate-large-screen-resources.py`. The script also builds each breed's `<palette>` from the colors in its sprite sheets, which keeps scaled pixel art from being smoothed into extra colors. Don't edit the generated files. After adding or changing a sprite or icon in the base file, regenerate and commit the result:
+```
+scripts/generate-large-screen-resources.py
+```
+`scripts/build.sh` runs it with `--check` first and stops if the generated files are out of date. To change a scale or icon height, edit `LARGE_SCALES` in the script. To map a new screen size, add a line to `monkey.jungle`.
+
 # IQ Connect Description
 
 Draft copy for the Connect IQ Store listing description (update before actually publishing — see the "Before publishing" checklist in [refinement-strategy.md](planning/refinement-strategy.md)).
@@ -122,15 +136,15 @@ Copy the generated PRG files to your device's GARMIN/APPS directory
 
 Apparently the PRG files are not visible, and the only way to verify is by checking if the new watchface appears in the options, otherwise it can just silently fail.
 
+The success of side loading appears to be mixed and the alternative is upload the App for beta in th IQ format on [Garmin's developer website](https://apps.garmin.com/en-US/developer/upload). See the next section.
+** A Note from Garmin: Only you will be able to download and test the app. If you want to publish your app after testing, you will need to upload it again and use another appID in the app’s manifest.xml. **
+
 ## Build for release (.iq)
 The `.iq` format needed for beta testing or Store submission via [Garmin's developer upload page](https://apps.garmin.com/en-US/developer/upload) is a different artifact from the per-device `.prg` files above — it bundles every manifest-declared device into one release-optimized package. This is a different VS Code command than "Build for Device" used above — use "Monkey C: Export Project" from the command palette, or via CLI (`-e` is the export/package flag), from the repo root:
 ```
 monkeyc -e -r -w -f DogAnimationExperiment/monkey.jungle -o DogAnimationExperiment/bin/DogAnimationExperiment.iq -y keys/developer_key
 ```
 `-e` exports the Store-ready package instead of a single device's `.prg`; `-r` builds in release/optimized mode; `-w` shows compiler warnings. Output lands at `DogAnimationExperiment/bin/DogAnimationExperiment.iq`, ready to upload.
-
-The success of side loading appears to be mixed and the alternative is upload the App for beta in th IQ format on [Garmin's developer website](https://apps.garmin.com/en-US/developer/upload).
-** A Note from Garmin: Only you will be able to download and test the app. If you want to publish your app after testing, you will need to upload it again and use another appID in the app’s manifest.xml. **
 
 ### Beta App
 Manifest AppID: b4605c40f90b48e7a9b6432924bece6e

@@ -126,6 +126,26 @@ function testChordHalfWidthAtMatchesCircleGeometry(logger as Test.Logger) as Boo
 }
 
 (:test)
+function testRowHalfWidthUsesNarrowerEdge(logger as Test.Logger) as Boolean {
+    // cx=cy=100. Above center the top edge is narrower; below, the bottom edge.
+    var cases = [
+        // [rowTop, rowHeight, expected]
+        [20, 20, 60],  // top edge dy=80 -> 60; bottom edge dy=60 -> 80
+        [140, 20, 80], // top edge dy=40 -> 91; bottom edge dy=60 -> 80
+        [90, 20, 99],  // straddles center: both edges dy=10 -> 99
+    ];
+    var ok = true;
+    for (var i = 0; i < cases.size(); i += 1) {
+        var got = rowHalfWidth(cases[i][0], cases[i][1], 100, 100);
+        if (got != cases[i][2]) {
+            logger.debug("rowTop=" + cases[i][0] + " expected=" + cases[i][2] + " got=" + got);
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+(:test)
 function testDarkerTintStepsDownSafeLadder(logger as Test.Logger) as Boolean {
     // darkerTint must produce a color that's still ARGB2222-safe (each
     // channel stays in the {0x00,0x55,0xAA,0xFF} ladder) since it's used to
@@ -572,6 +592,29 @@ function testAllDrawablesLoad(logger as Test.Logger) as Boolean {
     ok = checkDrawableLoads(logger, "IconBatteryHalf", Rez.Drawables.IconBatteryHalf) && ok;
     ok = checkDrawableLoads(logger, "IconBatteryQuarter", Rez.Drawables.IconBatteryQuarter) && ok;
     ok = checkDrawableLoads(logger, "IconBatteryEmpty", Rez.Drawables.IconBatteryEmpty) && ok;
+    return ok;
+}
+
+(:test)
+function testSpriteSheetsAreWholeSquareFrames(logger as Test.Logger) as Boolean {
+    // Every sheet shares its breed's standing-sheet height and is a whole number of frames wide.
+    var breeds = [
+        [Rez.Drawables.CorgiStanding, Rez.Drawables.CorgiLicking, Rez.Drawables.CorgiTailSpin,
+         Rez.Drawables.CorgiFootTaps, Rez.Drawables.CorgiSplootRear, Rez.Drawables.CorgiSplootFront],
+        [Rez.Drawables.AussieStanding, Rez.Drawables.AussieLicking, Rez.Drawables.AussieTailSpin,
+         Rez.Drawables.AussieFootTaps, Rez.Drawables.AussieSplootRear, Rez.Drawables.AussieSplootFront],
+    ];
+    var ok = true;
+    for (var b = 0; b < breeds.size(); b += 1) {
+        var frameSize = (WatchUi.loadResource(breeds[b][0]) as WatchUi.BitmapResource).getHeight();
+        for (var i = 0; i < breeds[b].size(); i += 1) {
+            var sheet = WatchUi.loadResource(breeds[b][i]) as WatchUi.BitmapResource;
+            if (sheet.getHeight() != frameSize || sheet.getWidth() % frameSize != 0) {
+                logger.debug("breed " + b + " sheet " + i + " is " + sheet.getWidth() + "x" + sheet.getHeight() + ", frame size " + frameSize);
+                ok = false;
+            }
+        }
+    }
     return ok;
 }
 

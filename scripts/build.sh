@@ -28,6 +28,8 @@ if [ ! -f "$DEV_KEY" ]; then
     exit 1
 fi
 
+python3 "$ROOT_DIR/scripts/generate-large-screen-resources.py" --check
+
 MONKEYC="$CONNECTIQ_SDK_HOME/bin/monkeyc"
 MONKEYDO="$CONNECTIQ_SDK_HOME/bin/monkeydo"
 

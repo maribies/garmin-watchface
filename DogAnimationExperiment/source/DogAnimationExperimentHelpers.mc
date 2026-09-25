@@ -188,6 +188,14 @@ function chordHalfWidthAt(y as Number, cx as Number, cy as Number) as Number {
     return Math.sqrt((cx * cx) - (dy * dy)).toNumber();
 }
 
+// Half-width available to a row spanning [rowTop, rowTop + rowHeight]: the
+// narrower of its top and bottom edges, so the whole row fits the circle.
+function rowHalfWidth(rowTop as Number, rowHeight as Number, cx as Number, cy as Number) as Number {
+    var top = chordHalfWidthAt(rowTop, cx, cy);
+    var bottom = chordHalfWidthAt(rowTop + rowHeight, cx, cy);
+    return top < bottom ? top : bottom;
+}
+
 // Maps enabled fields to position indices 0..5 (bottom-left, bottom-right,
 // middle-left, middle-right, top-left, top-right), densely packed in fixed
 // evaluation order — not sticky: toggling one field can shift others'
