@@ -42,12 +42,12 @@ A recipe for creating the pixel art has been documented and is continuously upda
 UI icons (steps, battery, etc.) are sourced from [Font Awesome Free](https://fontawesome.com/) — icons are CC BY 4.0, fonts are SIL OFL 1.1, code is MIT. All three require attribution. See the "Before publishing" note in [refinement-strategy.md](planning/refinement-strategy.md) for what that means for this app specifically (a compiled `.prg` doesn't carry forward the source file's embedded license comments the way a served web asset would).
 
 ## Large-screen resources
-The dog and the field icons are scaled up at build time on the larger (360–454px) screens. `monkey.jungle` maps each screen size to a generated override folder:
+The field and battery icons are scaled up at build time on the larger (360–454px) screens, and the dog is scaled up on the largest (454px). `monkey.jungle` maps each screen size to a generated override folder:
 
 | Folder | Screens | Sprites | Field icons | Battery icon |
 |---|---|---|---|---|
 | `resources/` (base) | 218–280 | 1× | 16px tall | 20px tall |
-| `resources-large-150` | 360, 390, 416 | 1.5× | 26px tall | 33px tall |
+| `resources-large-100` | 360, 390, 416 | 1× (base sheets) | 26px tall | 33px tall |
 | `resources-large-200` | 454 | 2× | 29px tall | 37px tall |
 
 Both folders are **generated** from `resources/drawables/drawables.xml` by `scripts/generate-large-screen-resources.py`. The script also builds each breed's `<palette>` from the colors in its sprite sheets, which keeps scaled pixel art from being smoothed into extra colors. Don't edit the generated files. After adding or changing a sprite or icon in the base file, regenerate and commit the result:
