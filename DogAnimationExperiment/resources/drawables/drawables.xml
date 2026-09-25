@@ -19,23 +19,24 @@
          576x512 (shoe-prints, sun, cloud, stairs), 512x512 (heart,
          cloud-rain, cloud-bolt, snowflake, gauge, message), 448x512 (fire,
          stopwatch, person-running), 320x512 (temperature-half);
-         scaleX/scaleY below rescale to ~20px tall, aspect-correct, since the
-         resource compiler otherwise rasterizes at native SVG size. -->
-    <bitmap id="IconShoePrints" filename="icons/shoe-prints-solid.svg" dithering="none" scaleX="23" scaleY="20" />
-    <bitmap id="IconHeart" filename="icons/heart-solid.svg" dithering="none" scaleX="20" scaleY="20" />
-    <bitmap id="IconSun" filename="icons/sun-solid.svg" dithering="none" scaleX="23" scaleY="20" />
-    <bitmap id="IconCloudSun" filename="icons/cloud-sun-solid.svg" dithering="none" scaleX="25" scaleY="20" />
-    <bitmap id="IconCloud" filename="icons/cloud-solid.svg" dithering="none" scaleX="23" scaleY="20" />
-    <bitmap id="IconCloudRain" filename="icons/cloud-rain-solid.svg" dithering="none" scaleX="20" scaleY="20" />
-    <bitmap id="IconCloudBolt" filename="icons/cloud-bolt-solid.svg" dithering="none" scaleX="20" scaleY="20" />
-    <bitmap id="IconSnowflake" filename="icons/snowflake-solid.svg" dithering="none" scaleX="20" scaleY="20" />
-    <bitmap id="IconTemperatureHalf" filename="icons/temperature-half-solid.svg" dithering="none" scaleX="13" scaleY="20" />
-    <bitmap id="IconGauge" filename="icons/gauge-solid.svg" dithering="none" scaleX="20" scaleY="20" />
-    <bitmap id="IconFire" filename="icons/fire-solid.svg" dithering="none" scaleX="18" scaleY="20" />
-    <bitmap id="IconMessage" filename="icons/message-solid.svg" dithering="none" scaleX="20" scaleY="20" />
-    <bitmap id="IconStairs" filename="icons/stairs-solid.svg" dithering="none" scaleX="23" scaleY="20" />
-    <bitmap id="IconStopwatch" filename="icons/stopwatch-solid.svg" dithering="none" scaleX="18" scaleY="20" />
-    <bitmap id="IconPersonRunning" filename="icons/person-running-solid.svg" dithering="none" scaleX="18" scaleY="20" />
+         scaleX/scaleY below rasterize them at their drawn size, aspect-correct
+         (field icons 16px tall, battery 20px), since the resource compiler
+         otherwise rasterizes at native SVG size. -->
+    <bitmap id="IconShoePrints" filename="icons/shoe-prints-solid.svg" dithering="none" scaleX="18" scaleY="16" />
+    <bitmap id="IconHeart" filename="icons/heart-solid.svg" dithering="none" scaleX="16" scaleY="16" />
+    <bitmap id="IconSun" filename="icons/sun-solid.svg" dithering="none" scaleX="18" scaleY="16" />
+    <bitmap id="IconCloudSun" filename="icons/cloud-sun-solid.svg" dithering="none" scaleX="20" scaleY="16" />
+    <bitmap id="IconCloud" filename="icons/cloud-solid.svg" dithering="none" scaleX="18" scaleY="16" />
+    <bitmap id="IconCloudRain" filename="icons/cloud-rain-solid.svg" dithering="none" scaleX="16" scaleY="16" />
+    <bitmap id="IconCloudBolt" filename="icons/cloud-bolt-solid.svg" dithering="none" scaleX="16" scaleY="16" />
+    <bitmap id="IconSnowflake" filename="icons/snowflake-solid.svg" dithering="none" scaleX="16" scaleY="16" />
+    <bitmap id="IconTemperatureHalf" filename="icons/temperature-half-solid.svg" dithering="none" scaleX="10" scaleY="16" />
+    <bitmap id="IconGauge" filename="icons/gauge-solid.svg" dithering="none" scaleX="16" scaleY="16" />
+    <bitmap id="IconFire" filename="icons/fire-solid.svg" dithering="none" scaleX="14" scaleY="16" />
+    <bitmap id="IconMessage" filename="icons/message-solid.svg" dithering="none" scaleX="16" scaleY="16" />
+    <bitmap id="IconStairs" filename="icons/stairs-solid.svg" dithering="none" scaleX="18" scaleY="16" />
+    <bitmap id="IconStopwatch" filename="icons/stopwatch-solid.svg" dithering="none" scaleX="14" scaleY="16" />
+    <bitmap id="IconPersonRunning" filename="icons/person-running-solid.svg" dithering="none" scaleX="14" scaleY="16" />
     <bitmap id="IconBatteryFull" filename="icons/battery-full-solid.svg" dithering="none" scaleX="25" scaleY="20" />
     <bitmap id="IconBatteryThreeQuarters" filename="icons/battery-three-quarters-solid.svg" dithering="none" scaleX="25" scaleY="20" />
     <bitmap id="IconBatteryHalf" filename="icons/battery-half-solid.svg" dithering="none" scaleX="25" scaleY="20" />

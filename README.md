@@ -44,16 +44,17 @@ UI icons (steps, battery, etc.) are sourced from [Font Awesome Free](https://fon
 ## Large-screen resources
 The dog and the field icons are scaled up at build time on the larger (360–454px) screens. `monkey.jungle` maps each screen size to a generated override folder:
 
-| Folder | Screens | Sprites | Field icons |
-|---|---|---|---|
-| `resources-large-150` | 360, 390, 416 | 1.5× | 33px tall |
-| `resources-large-200` | 454 | 2× | 37px tall |
+| Folder | Screens | Sprites | Field icons | Battery icon |
+|---|---|---|---|---|
+| `resources/` (base) | 218–280 | 1× | 16px tall | 20px tall |
+| `resources-large-150` | 360, 390, 416 | 1.5× | 26px tall | 33px tall |
+| `resources-large-200` | 454 | 2× | 29px tall | 37px tall |
 
 Both folders are **generated** from `resources/drawables/drawables.xml` by `scripts/generate-large-screen-resources.py`. The script also builds each breed's `<palette>` from the colors in its sprite sheets, which keeps scaled pixel art from being smoothed into extra colors. Don't edit the generated files. After adding or changing a sprite or icon in the base file, regenerate and commit the result:
 ```
 scripts/generate-large-screen-resources.py
 ```
-`scripts/build.sh` runs it with `--check` first and stops if the generated files are out of date. To change a scale or icon height, edit `LARGE_SCALES` in the script. To map a new screen size, add a line to `monkey.jungle`.
+`scripts/build.sh` runs it with `--check` first and stops if the generated files are out of date. To change a scale or icon height, edit `LARGE_SCALES` in the script. Icons are rasterized at the size they're drawn and drawn unscaled, because `Dc.drawScaledBitmap` doesn't exist on some supported devices (fr165, fr255 family, vivoactive5). To map a new screen size, add a line to `monkey.jungle`.
 
 # IQ Connect Description
 

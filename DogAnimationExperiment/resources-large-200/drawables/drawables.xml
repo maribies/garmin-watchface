@@ -14,21 +14,21 @@
     <bitmap id="AussieFootTaps" filename="../../resources/drawables/aussie/aussie-foot-taps-sheet.png" dithering="none" compress="true" scaleRelativeTo="image" scaleX="200%" scaleY="200%"><palette><color>000000</color><color>555555</color><color>55AAFF</color><color>AA5500</color><color>AAAAAA</color><color>FF5555</color><color>FF55AA</color><color>FFAA55</color><color>FFFFFF</color></palette></bitmap>
     <bitmap id="AussieSplootRear" filename="../../resources/drawables/aussie/aussie-sploot-rear-sheet.png" dithering="none" compress="true" scaleRelativeTo="image" scaleX="200%" scaleY="200%"><palette><color>000000</color><color>555555</color><color>55AAFF</color><color>AA5500</color><color>AAAAAA</color><color>FF5555</color><color>FF55AA</color><color>FFAA55</color><color>FFFFFF</color></palette></bitmap>
     <bitmap id="AussieSplootFront" filename="../../resources/drawables/aussie/aussie-sploot-front-sheet.png" dithering="none" compress="true" scaleRelativeTo="image" scaleX="200%" scaleY="200%"><palette><color>000000</color><color>555555</color><color>55AAFF</color><color>AA5500</color><color>AAAAAA</color><color>FF5555</color><color>FF55AA</color><color>FFAA55</color><color>FFFFFF</color></palette></bitmap>
-    <bitmap id="IconShoePrints" filename="../../resources/drawables/icons/shoe-prints-solid.svg" dithering="none" scaleX="43" scaleY="37" />
-    <bitmap id="IconHeart" filename="../../resources/drawables/icons/heart-solid.svg" dithering="none" scaleX="37" scaleY="37" />
-    <bitmap id="IconSun" filename="../../resources/drawables/icons/sun-solid.svg" dithering="none" scaleX="43" scaleY="37" />
-    <bitmap id="IconCloudSun" filename="../../resources/drawables/icons/cloud-sun-solid.svg" dithering="none" scaleX="46" scaleY="37" />
-    <bitmap id="IconCloud" filename="../../resources/drawables/icons/cloud-solid.svg" dithering="none" scaleX="43" scaleY="37" />
-    <bitmap id="IconCloudRain" filename="../../resources/drawables/icons/cloud-rain-solid.svg" dithering="none" scaleX="37" scaleY="37" />
-    <bitmap id="IconCloudBolt" filename="../../resources/drawables/icons/cloud-bolt-solid.svg" dithering="none" scaleX="37" scaleY="37" />
-    <bitmap id="IconSnowflake" filename="../../resources/drawables/icons/snowflake-solid.svg" dithering="none" scaleX="37" scaleY="37" />
-    <bitmap id="IconTemperatureHalf" filename="../../resources/drawables/icons/temperature-half-solid.svg" dithering="none" scaleX="24" scaleY="37" />
-    <bitmap id="IconGauge" filename="../../resources/drawables/icons/gauge-solid.svg" dithering="none" scaleX="37" scaleY="37" />
-    <bitmap id="IconFire" filename="../../resources/drawables/icons/fire-solid.svg" dithering="none" scaleX="33" scaleY="37" />
-    <bitmap id="IconMessage" filename="../../resources/drawables/icons/message-solid.svg" dithering="none" scaleX="37" scaleY="37" />
-    <bitmap id="IconStairs" filename="../../resources/drawables/icons/stairs-solid.svg" dithering="none" scaleX="43" scaleY="37" />
-    <bitmap id="IconStopwatch" filename="../../resources/drawables/icons/stopwatch-solid.svg" dithering="none" scaleX="33" scaleY="37" />
-    <bitmap id="IconPersonRunning" filename="../../resources/drawables/icons/person-running-solid.svg" dithering="none" scaleX="33" scaleY="37" />
+    <bitmap id="IconShoePrints" filename="../../resources/drawables/icons/shoe-prints-solid.svg" dithering="none" scaleX="33" scaleY="29" />
+    <bitmap id="IconHeart" filename="../../resources/drawables/icons/heart-solid.svg" dithering="none" scaleX="29" scaleY="29" />
+    <bitmap id="IconSun" filename="../../resources/drawables/icons/sun-solid.svg" dithering="none" scaleX="33" scaleY="29" />
+    <bitmap id="IconCloudSun" filename="../../resources/drawables/icons/cloud-sun-solid.svg" dithering="none" scaleX="36" scaleY="29" />
+    <bitmap id="IconCloud" filename="../../resources/drawables/icons/cloud-solid.svg" dithering="none" scaleX="33" scaleY="29" />
+    <bitmap id="IconCloudRain" filename="../../resources/drawables/icons/cloud-rain-solid.svg" dithering="none" scaleX="29" scaleY="29" />
+    <bitmap id="IconCloudBolt" filename="../../resources/drawables/icons/cloud-bolt-solid.svg" dithering="none" scaleX="29" scaleY="29" />
+    <bitmap id="IconSnowflake" filename="../../resources/drawables/icons/snowflake-solid.svg" dithering="none" scaleX="29" scaleY="29" />
+    <bitmap id="IconTemperatureHalf" filename="../../resources/drawables/icons/temperature-half-solid.svg" dithering="none" scaleX="18" scaleY="29" />
+    <bitmap id="IconGauge" filename="../../resources/drawables/icons/gauge-solid.svg" dithering="none" scaleX="29" scaleY="29" />
+    <bitmap id="IconFire" filename="../../resources/drawables/icons/fire-solid.svg" dithering="none" scaleX="25" scaleY="29" />
+    <bitmap id="IconMessage" filename="../../resources/drawables/icons/message-solid.svg" dithering="none" scaleX="29" scaleY="29" />
+    <bitmap id="IconStairs" filename="../../resources/drawables/icons/stairs-solid.svg" dithering="none" scaleX="33" scaleY="29" />
+    <bitmap id="IconStopwatch" filename="../../resources/drawables/icons/stopwatch-solid.svg" dithering="none" scaleX="25" scaleY="29" />
+    <bitmap id="IconPersonRunning" filename="../../resources/drawables/icons/person-running-solid.svg" dithering="none" scaleX="25" scaleY="29" />
     <bitmap id="IconBatteryFull" filename="../../resources/drawables/icons/battery-full-solid.svg" dithering="none" scaleX="46" scaleY="37" />
     <bitmap id="IconBatteryThreeQuarters" filename="../../resources/drawables/icons/battery-three-quarters-solid.svg" dithering="none" scaleX="46" scaleY="37" />
     <bitmap id="IconBatteryHalf" filename="../../resources/drawables/icons/battery-half-solid.svg" dithering="none" scaleX="46" scaleY="37" />

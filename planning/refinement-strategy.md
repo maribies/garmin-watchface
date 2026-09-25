@@ -119,6 +119,8 @@ One thing surfaced worth knowing: `vivoactive6` (and several of the newer additi
 
 **Large screens:** `monkey.jungle` maps 360/390/416 screens to `resources-large-150` and 454 to `resources-large-200`, which override the sprites (1.5× / 2×, with a per-breed `<palette>` since compile-time scaling otherwise smooths the pixel art into extra colors) and re-rasterize the icons (33px / 37px) to match the larger field text. Frame and icon sizes are now read from the loaded bitmaps instead of constants. Packages: ~325KB at 1.5×, ~353KB at 2×; MIP unchanged.
 
+**API gaps:** every symbol the face uses was checked against all 43 devices' `api.debug.xml`. `floorsClimbed` (missing on vivoactive5/6) is now `has`-checked, and field icons are rasterized at their drawn size and drawn with `drawBitmap`, since `drawScaledBitmap` is missing on fr165/fr165m, the fr255 family and vivoactive5. `testRendersEveryFieldWithoutError` renders a full frame with every field on, and catches this class of crash when the test build runs for a device.
+
 **Post-review cleanup:** `Math.rand()` now seeded in `initialize()`; date cache cleared in `onHide()`; unused `layout.xml`, `Background.mc` and `getApp()` removed; stale corgi-only and sit/stand comments updated.
 
 

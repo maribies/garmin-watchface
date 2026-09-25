@@ -1,3 +1,5 @@
+import Toybox.Application.Properties;
+import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.Math;
 import Toybox.System;
@@ -710,6 +712,39 @@ function testTrickResourcesSurviveHideShowCycle(logger as Test.Logger) as Boolea
         ok = false;
     }
     view.onHide(); // stop the timer startRandomTrick() started
+    return ok;
+}
+
+(:test)
+function testRendersEveryFieldWithoutError(logger as Test.Logger) as Boolean {
+    // Two passes because only 6 of the 9 fields get a position at once.
+    var keys = ["ShowSteps", "ShowHeartRate", "ShowWeather", "ShowBodyBattery", "ShowCalories",
+                "ShowNotifications", "ShowFloors", "ShowIntensityMinutes", "ShowDistance"];
+    var saved = [];
+    for (var i = 0; i < keys.size(); i += 1) {
+        saved.add(Properties.getValue(keys[i]));
+    }
+    var settings = System.getDeviceSettings();
+    var dc = Graphics.createBufferedBitmap({ :width => settings.screenWidth, :height => settings.screenHeight }).get().getDc();
+    var view = new DogAnimationExperimentView();
+    var ok = true;
+    try {
+        view.onShow();
+        for (var pass = 0; pass < 2; pass += 1) {
+            for (var i = 0; i < keys.size(); i += 1) {
+                Properties.setValue(keys[i], pass == 0 ? i < 6 : i >= 6);
+            }
+            view.invalidateFieldCache();
+            view.onUpdate(dc);
+        }
+    } catch (ex) {
+        logger.debug("render threw: " + ex.getErrorMessage());
+        ok = false;
+    }
+    view.onHide();
+    for (var i = 0; i < keys.size(); i += 1) {
+        Properties.setValue(keys[i], saved[i]);
+    }
     return ok;
 }
 

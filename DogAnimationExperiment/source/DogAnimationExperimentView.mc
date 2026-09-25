@@ -47,10 +47,6 @@ const STATE_IDLE = null;
 // instead — see drawFields.
 const FIELD_INDEX_WEATHER = 2;
 
-// Icons draw smaller than native size so they read as a subordinate accent
-// next to the value.
-const FIELD_ICON_SCALE = 0.8;
-
 // Vertical gap between an icon and its value, stacked tightly.
 const FIELD_ICON_TEXT_GAP = 2;
 
@@ -435,8 +431,8 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
     // the dog sprite, so a wide value can overlap it.
     private function drawFields(dc as Dc, cx as Number, cy as Number, height as Number, pad as Number, subtextColor as Number) as Void {
         var textHeight = Graphics.getFontHeight(Graphics.FONT_SYSTEM_XTINY);
-        var scaledIconHeight = ((mFieldDefs[0][:icon] as WatchUi.BitmapResource).getHeight() * FIELD_ICON_SCALE).toNumber();
-        var stackedRowHeight = scaledIconHeight + FIELD_ICON_TEXT_GAP + textHeight;
+        var iconHeight = (mFieldDefs[0][:icon] as WatchUi.BitmapResource).getHeight();
+        var stackedRowHeight = iconHeight + FIELD_ICON_TEXT_GAP + textHeight;
 
         var bottomGap = 4; // breathing room from the time block below
         var rowPadding = 6; // between adjacent field rows
@@ -472,22 +468,22 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var font = Graphics.FONT_SYSTEM_XTINY;
         var textWidth = dc.getTextWidthInPixels(valueText, font);
         var textHeight = Graphics.getFontHeight(font);
-        var scaledIconWidth = (icon.getWidth() * FIELD_ICON_SCALE).toNumber();
-        var scaledIconHeight = (icon.getHeight() * FIELD_ICON_SCALE).toNumber();
+        var iconWidth = icon.getWidth();
+        var iconHeight = icon.getHeight();
 
         var iconY = rowY;
-        var textY = rowY + scaledIconHeight + FIELD_ICON_TEXT_GAP;
-        var iconHalfWidth = rowHalfWidth(iconY, scaledIconHeight, cx, cy) - FIELD_EDGE_MARGIN;
+        var textY = rowY + iconHeight + FIELD_ICON_TEXT_GAP;
+        var iconHalfWidth = rowHalfWidth(iconY, iconHeight, cx, cy) - FIELD_EDGE_MARGIN;
         var textHalfWidth = rowHalfWidth(textY, textHeight, cx, cy) - FIELD_EDGE_MARGIN;
 
         var iconX = cx - iconHalfWidth;
         var textX = cx - textHalfWidth;
         if (alignToRightEdge) {
-            iconX = cx + iconHalfWidth - scaledIconWidth;
+            iconX = cx + iconHalfWidth - iconWidth;
             textX = cx + textHalfWidth - textWidth;
         }
 
-        dc.drawScaledBitmap(iconX, iconY, scaledIconWidth, scaledIconHeight, icon);
+        dc.drawBitmap(iconX, iconY, icon);
         dc.setColor(subtextColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(textX, textY, font, valueText, Graphics.TEXT_JUSTIFY_LEFT);
     }
@@ -566,7 +562,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
 
     function floorsValue() as String {
         var floors = null;
-        if (mCurrentActivityInfo != null) {
+        if (mCurrentActivityInfo != null && mCurrentActivityInfo has :floorsClimbed) {
             floors = mCurrentActivityInfo.floorsClimbed;
         }
         return formatFieldValue(floors, "");

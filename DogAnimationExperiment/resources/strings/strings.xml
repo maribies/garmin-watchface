@@ -11,7 +11,7 @@
     <string id="ShowBodyBatteryTitle">Show Body Battery</string>
     <string id="ShowCaloriesTitle">Show Calories</string>
     <string id="ShowNotificationsTitle">Show Notifications</string>
-    <string id="ShowFloorsTitle">Show Floors Climbed</string>
+    <string id="ShowFloorsTitle">Show Floors Climbed (data not on all devices)</string>
     <string id="ShowIntensityMinutesTitle">Show Intensity Minutes</string>
     <string id="ShowDistanceTitle">Show Distance</string>
 
