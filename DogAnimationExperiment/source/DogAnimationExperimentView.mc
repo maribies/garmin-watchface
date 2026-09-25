@@ -377,7 +377,7 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         var subtextColor = darkerTint(mBackgroundColor);
 
         // Battery — icon, top center.
-        drawBattery(dc, cx, pad);
+        drawBattery(dc, cx, pad, subtextColor);
 
         // Dog sprite — current animation frame, roughly centered (nudged up
         // slightly to leave breathing room for the time/date block below).
@@ -391,15 +391,18 @@ class DogAnimationExperimentView extends WatchUi.WatchFace {
         drawTimeDate(dc, cx, height, pad, Graphics.COLOR_BLACK, subtextColor);
     }
 
-    // Battery icon, level-selected, centered horizontally at the given y.
-    private function drawBattery(dc as Dc, cx as Number, y as Number) as Void {
-        var stats = System.getSystemStats();
-        var battery = stats.battery.toNumber();
-        var batteryIcon = mBatteryIcons[pickBatteryIconIndex(battery)];
-        if (batteryIcon != null) {
-            var icon = batteryIcon as WatchUi.BitmapResource;
-            dc.drawBitmap(cx - (icon.getWidth() / 2), y, icon);
-        }
+    // Battery icon, level-selected, with its percentage to the right; the
+    // pair is centered horizontally at the given y.
+    private function drawBattery(dc as Dc, cx as Number, y as Number, textColor as Number) as Void {
+        var battery = System.getSystemStats().battery.toNumber();
+        var icon = mBatteryIcons[pickBatteryIconIndex(battery)] as WatchUi.BitmapResource;
+        var font = Graphics.FONT_SYSTEM_XTINY;
+        var text = formatFieldValue(battery, "%");
+        var gap = 6;
+        var left = cx - ((icon.getWidth() + gap + dc.getTextWidthInPixels(text, font)) / 2);
+        dc.drawBitmap(left, y, icon);
+        dc.setColor(textColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(left + icon.getWidth() + gap, y + (icon.getHeight() / 2), font, text, Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
     // Draws the current animation frame, centered around (cx, cy) and nudged
