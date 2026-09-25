@@ -58,32 +58,39 @@ scripts/generate-large-screen-resources.py
 
 # IQ Connect Description
 
-Draft copy for the Connect IQ Store listing description (update before actually publishing — see the "Before publishing" checklist in [refinement-strategy.md](planning/refinement-strategy.md)).
+Store listing for the Connect IQ developer upload page. Status of each field:
 
-Needs:
-- title (max 50 chars)
-   - Pixel Dog Animation
-- description (max 4000 chars)
-   - see below
-- What's new (optional - max 4000 chars)
-- hero image (optional - The image (JPG, GIF or PNG) has to be 1440x720 pixels large and can have a maximum size of 2048 KB.)
-   - saved in designs
-- Category and Subcategory selection
-   - fun
-- Privacy policy, if app collects user data (boolean)
-- ANT+ Profiles (boolean)
-- Regional Limits (boolean)
-- Cover Image & Icons (Image must be a JPG, GIF or PNG less than 300 KB.). Icons (boolean - only be 128 x 128 pixels, device 64 and 24 color)
-- Screen images (Image must be a JPG, GIF or PNG less than 150 KB)
-- Preview video (optional- YouTube and Vimeo only)
-- Additional information - email (public) and source code url
-- Review notification (boolean)
-- App migration (boolean)
-- Monetization (boolean)
-- Companion App (optional)
-- Additional hardware requirements (link)
+| Field | Value | Status |
+|---|---|---|
+| Title (max 50) | Pixel Pup | Ready |
+| Description (max 4000) | See below (~1,500 characters) | Ready |
+| What's new (optional) | Initial release. | Ready |
+| Hero image (1440×720, max 2048KB) | `designs/corgi-standing-hero-1440x720.png` (1440×720, 29KB) | Ready |
+| Store icon (128×128) | `designs/store-icon-128.png` (paw, transparent, 830 bytes) | Ready |
+| Cover image (max 300KB) | Can reuse the hero image | Ready |
+| Screenshots (max 150KB each) | fenix7s / vivoactive6 / venu3 shots from the simulator | **To do** |
+| Category | Fun | Ready |
+| Privacy policy | Not needed: only the `SensorHistory` permission, no network access, and nothing leaves the watch | Ready |
+| ANT+ profiles | No | Ready |
+| Regional limits | No | Ready |
+| Preview video (optional) | Skipped | Ready |
+| Public email | | **To decide** |
+| Source code URL | https://github.com/maribies/garmin-watchface (the repo must be public) | Ready |
+| Review notification | Yes | Ready |
+| App migration | No (new app) | Ready |
+| Monetization | No | Ready |
+| Companion app | None | Ready |
+| Additional hardware | None | Ready |
+| Release app ID | New ID in `manifest.xml` at publish time (the beta ID can't be reused) | **At publish** |
 
-A cute pixel dog watch face that idles, blinks, and plays random tricks (tail spin, licking the screen, sitting down and standing back up). Background color and data fields are fully customizable via the on-watch settings menu. 
+### Description
+
+A cute pixel-art dog watch face. Pick a corgi or an Australian Shepherd; your pup idles, blinks, and plays random tricks: chasing its tail, licking the screen, splooting, and happy foot taps.
+
+Your pup also reacts to your day:
+- **Low battery**: flops into a sploot at 20% and again at 10% (not while charging)
+- **Move alert**: chases its tail when it's time to get moving
+- **High stress**: licks the screen to cheer you up
 
 Choose up to 6 of the following stat fields, shown around the dog:
 - **Steps** — today's step count
@@ -92,15 +99,17 @@ Choose up to 6 of the following stat fields, shown around the dog:
 - **Body Battery** — current body battery level
 - **Calories** — calories burned today
 - **Notifications** — unread notification count
-- **Floors Climbed** — floors climbed today
+- **Floors Climbed** — floors climbed today (not available on all devices)
 - **Intensity Minutes** — this week's accumulated intensity minutes
 - **Distance** — distance traveled today
 
-Also customizable: background color (6 shades) and 12/24-hour time format.
+The battery level and percentage always show at the top.
 
-Currently just a corgi-like animation, hopefully other breeds and trick animations soon.
+Customize in the Garmin Connect app or Garmin Express: dog breed, background color (6 shades), data fields, and 12/24-hour time format.
 
-Developed with the help of Claude code.
+On AMOLED watches with the always-on display enabled, the face switches to a dark time-and-date view while the watch sleeps, to protect the screen.
+
+Developed with the help of Claude Code.
 
 Icons: Font Awesome Free 7.3.1 (fontawesome.com), © Fonticons, Inc., CC BY 4.0 (creativecommons.org/licenses/by/4.0) — converted to bitmap and recolored.
 
